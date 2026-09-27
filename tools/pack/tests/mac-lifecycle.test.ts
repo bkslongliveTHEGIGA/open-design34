@@ -9,7 +9,15 @@ import type { DesktopStatusSnapshot } from "@open-design/sidecar-proto";
 import type { SidecarStopResult } from "@open-design/sidecar";
 
 import type { ToolPackConfig } from "@/config/index.js";
+import { resolveMacInstallIdentity } from "@/mac/identity.js";
 import { resolveMacPaths } from "@/mac/paths.js";
+
+/**
+ * The in-bundle executable is named after the install identity, so these
+ * fixtures derive it rather than hardcoding a product name that a rebrand moves.
+ */
+const macExecutableName = (config: ToolPackConfig): string =>
+  resolveMacInstallIdentity(config).executableName;
 
 const getSidecarStatus = vi.fn(async (
   _stamp: { source: string },
@@ -151,7 +159,7 @@ describe("startPackedMacApp", () => {
     try {
       const config = makeConfig(root);
       const paths = resolveMacPaths(config);
-      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", "Open Design");
+      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", macExecutableName(config));
       const delegatedPid = 5678;
 
       await mkdir(join(paths.installedAppPath, "Contents", "MacOS"), { recursive: true });
@@ -195,7 +203,7 @@ describe("startPackedMacApp", () => {
     try {
       const config = makeConfig(root);
       const paths = resolveMacPaths(config);
-      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", "Open Design");
+      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", macExecutableName(config));
 
       await mkdir(join(paths.installedAppPath, "Contents", "MacOS"), { recursive: true });
       await writeFile(executablePath, "#!/bin/sh\nexit 1\n", "utf8");
@@ -217,7 +225,7 @@ describe("startPackedMacApp", () => {
     try {
       const config = makeConfig(root);
       const paths = resolveMacPaths(config);
-      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", "Open Design");
+      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", macExecutableName(config));
 
       await mkdir(join(paths.installedAppPath, "Contents", "MacOS"), { recursive: true });
       await writeFile(executablePath, "#!/bin/sh\nexit 0\n", "utf8");
@@ -243,7 +251,7 @@ describe("startPackedMacApp", () => {
     try {
       const config = makeConfig(root);
       const paths = resolveMacPaths(config);
-      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", "Open Design");
+      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", macExecutableName(config));
       const bundledConfigPath = join(paths.installedAppPath, "Contents", "Resources", "open-design-config.json");
 
       await mkdir(join(paths.installedAppPath, "Contents", "MacOS"), { recursive: true });
@@ -282,7 +290,7 @@ describe("startPackedMacApp", () => {
     try {
       const config = makeConfig(root, { namespace: "release-preview" });
       const paths = resolveMacPaths(config);
-      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", "Open Design Preview");
+      const executablePath = join(paths.installedAppPath, "Contents", "MacOS", macExecutableName(config));
 
       await mkdir(join(paths.installedAppPath, "Contents", "MacOS"), { recursive: true });
       await writeFile(executablePath, "#!/bin/sh\nexit 0\n", "utf8");

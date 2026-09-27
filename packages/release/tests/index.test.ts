@@ -47,11 +47,14 @@ describe("@open-design/release", () => {
   });
 
   it("centralizes release identity and namespace derivation", () => {
-    expect(releaseChannelDescriptor("prerelease").productName).toBe("Open Design Prerelease");
+    // The display name is the Hermes Design Studio identity; the appId stays on
+    // the io.open-design.desktop namespace on purpose, so installed users keep
+    // their registry keys and updater feeds.
+    expect(releaseChannelDescriptor("prerelease").productName).toBe("Hermes Design Studio Prerelease");
     expect(releaseInstallIdentity("prerelease")).toEqual({
       appId: "io.open-design.desktop.prerelease",
-      executableName: "Open Design Prerelease",
-      productName: "Open Design Prerelease",
+      executableName: "Hermes Design Studio Prerelease",
+      productName: "Hermes Design Studio Prerelease",
     });
     expect(releaseNamespace("prerelease")).toBe("release-prerelease");
     expect(releaseNamespace("prerelease", "win")).toBe("release-prerelease-win");
@@ -59,7 +62,7 @@ describe("@open-design/release", () => {
     expect(releaseChannelDescriptor("qa2")).toMatchObject({
       appId: "io.open-design.desktop.qa2",
       channel: "qa2",
-      productName: "Open Design Qa2",
+      productName: "Hermes Design Studio Qa2",
       storagePrefix: "qa2",
     });
   });

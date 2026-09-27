@@ -42,6 +42,7 @@ import {
 import { createDesktopRuntime, type DesktopRuntime } from "./runtime.js";
 import { dispatchInviteDeeplink, registerInviteDeeplink } from "./invite-deeplink.js";
 import { focusDesktopForDeeplink } from "./deeplink-focus.js";
+import { createHermesDesktopRuntime, registerHermesDesktopIpc } from "./hermes-desktop.js";
 import { setUpDesktopCrashReporter, writeDesktopGpuInfo } from "./crash-diagnostics.js";
 import { beginDesktopSession, clearReportedCrash, endDesktopSessionCleanly, markDesktopSessionRunning } from "./session-lifecycle.js";
 import {
@@ -780,6 +781,8 @@ export async function runDesktopMain(
   let disposeMenu: () => void = () => undefined;
   let updateScheduler: DesktopUpdaterScheduler | null = null;
   let removeDiagnosticsIpc: () => void = () => undefined;
+  /** Stops the Hermes bridge poll; a no-op when the bridge failed to start. */
+  let hermesStop: () => void = () => undefined;
   let shutdownPromise: Promise<void> | null = null;
   let shutdownComplete = false;
   let shutdownRequestCount = 0;
@@ -841,6 +844,9 @@ export async function runDesktopMain(
       const startedAt = Date.now();
       let shutdownFailed = false;
       console.info("[open-design desktop] shutdown started");
+      // Stop the Hermes poll before the sidecars wind down, so a late discovery
+      // callback cannot fire against a torn-down runtime.
+      hermesStop();
       updateScheduler?.stop("shutdown");
       await updater.recordLifecycle?.({ stage: "shutdown_started", outcome: "started" });
       // Stop the request-producing renderer before retiring its web/daemon
@@ -1032,6 +1038,49 @@ export async function runDesktopMain(
     },
     protocolClientPath: options.inviteProtocolClientPath,
   });
+
+  // Hermes Design Studio bridge. Discovery runs in the background, so a missing
+  // Hermes is a normal startup path rather than an error: the bridge settles on
+  // `not-installed` and Design Studio runs standalone. Nothing here blocks
+  // app start, and nothing throws into the caller if Hermes misbehaves.
+  try {
+    const hermesRuntime = createHermesDesktopRuntime({
+      broadcast: (channel, payload) => {
+        for (const window of BrowserWindow.getAllWindows()) {
+          if (!window.isDestroyed()) window.webContents.send(channel, payload);
+        }
+      },
+      protocolClientPath: options.inviteProtocolClientPath ?? null,
+    });
+    registerHermesDesktopIpc(hermesRuntime, {
+      send: (contents, channel, payload) => {
+        if (!contents.isDestroyed()) contents.send(channel, payload);
+      },
+    });
+    hermesRuntime.start();
+    void hermesRuntime.connect().catch((error: unknown) => {
+      console.warn(
+        `[hermes] initial discovery failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+    hermesStop = () => {
+      try {
+        hermesRuntime.stop();
+      } catch (error) {
+        console.warn(
+          `[hermes] stop failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    };
+  } catch (error) {
+    // A broken bridge must never take the app down; Design Studio is still
+    // fully usable without it.
+    console.warn(
+      `[hermes] bridge unavailable, continuing in standalone mode: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
   const discoverUpdaterAppConfigBaseUrl = resolveDaemonBaseUrl(options);
   updateScheduler = createDesktopUpdaterScheduler(updater, {
     backoffInitialMs: updater.config.checkBackoffInitialMs,

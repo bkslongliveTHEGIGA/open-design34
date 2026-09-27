@@ -12,7 +12,22 @@ import {
 import { SIDECAR_DEFAULTS } from "@open-design/sidecar-proto";
 import { releaseChannelFromNamespace, releaseChannelFromVersion } from "@open-design/release";
 
+import { PRODUCT_NAME as MAC_PRODUCT_NAME } from "../mac/constants.js";
+import { PRODUCT_NAME as WIN_PRODUCT_NAME } from "../win/constants.js";
+
 import type { ToolPackConfig, ToolPackPlatform } from "../config/index.js";
+
+/**
+ * Product name for the given platform's payload archive.
+ *
+ * This used to be a hardcoded `"Open Design-"` literal, which silently agreed
+ * with `mac/paths.ts` and `win/paths.ts` only because all three happened to say
+ * the same thing. Deriving it keeps the launcher pointed at the archive the
+ * packer actually writes when the product name changes.
+ */
+function launcherPayloadProductName(platform: ToolPackPlatform): string {
+  return platform === "win" ? WIN_PRODUCT_NAME : MAC_PRODUCT_NAME;
+}
 
 export type ToolPackLauncherLayout = {
   channel: LauncherChannel;
@@ -81,7 +96,7 @@ export function resolveToolPackLauncherPayloadLayout(
   const archivePath = join(
     config.roots.output.namespaceRoot,
     "payload",
-    `Open Design-${namespaceToken}-payload.${payloadArchiveExtension(config.platform)}`,
+    `${launcherPayloadProductName(config.platform)}-${namespaceToken}-payload.${payloadArchiveExtension(config.platform)}`,
   );
   return {
     archivePath,

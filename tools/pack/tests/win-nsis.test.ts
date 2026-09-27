@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { ToolPackConfig } from "@/config/index.js";
+import { PRODUCT_NAME } from "@/win/constants.js";
 import { writeNsisInclude } from "@/win/nsis.js";
 import type { WinPaths } from "@/win/types.js";
 
@@ -77,7 +78,7 @@ describe("writeNsisInclude", () => {
       await writeNsisInclude(config, paths);
       const written = await readFile(includePath, "utf8");
 
-      expect(written).toContain('$APPDATA\\Open Design\\namespaces\\test-namespace\\data\\observations\\installer');
+      expect(written).toContain(`$APPDATA\\${PRODUCT_NAME}\\namespaces\\test-namespace\\data\\observations\\installer`);
     } finally {
       await rm(root, { force: true, recursive: true });
     }

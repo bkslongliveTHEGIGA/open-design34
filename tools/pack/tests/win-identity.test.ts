@@ -11,56 +11,70 @@ import {
   createLauncherRuntimeSyncPowerShellScript,
   createNsisQuotedCommandLiteral,
 } from "@/win/custom-installer.js";
+import { releaseInstallIdentity } from "@open-design/release";
+
+import { PRODUCT_NAME } from "@/win/constants.js";
 import { resolveWinInstallIdentity } from "@/win/identity.js";
+
+/**
+ * Display names come from `PRODUCT_NAME` (non-release namespaces) or from
+ * `releaseInstallIdentity(...).productName` (release channels). Registry keys
+ * come from `@open-design/sidecar-proto`'s `OPEN_DESIGN_PRODUCT_NAME`, which is
+ * an internal identifier that deliberately does NOT follow the display rename —
+ * changing it would orphan installed users' Uninstall keys.
+ */
+const channelName = (channel: "stable" | "beta" | "preview" | "prerelease"): string =>
+  releaseInstallIdentity(channel).productName;
+const registryRoot = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Open Design";
 
 const execFileAsync = promisify(execFile);
 
 describe("resolveWinInstallIdentity", () => {
   it("keeps the default namespace on the canonical Windows display name", () => {
     expect(resolveWinInstallIdentity({ namespace: "default" })).toMatchObject({
-      displayName: "Open Design",
-      shortcutName: "Open Design.lnk",
-      uninstallerName: "Uninstall Open Design.exe",
+      displayName: PRODUCT_NAME,
+      shortcutName: `${PRODUCT_NAME}.lnk`,
+      uninstallerName: `Uninstall ${PRODUCT_NAME}.exe`,
     });
   });
 
   it("uses the canonical Windows display name for stable release namespaces", () => {
     expect(resolveWinInstallIdentity({ namespace: "release-stable-win" })).toMatchObject({
-      appPathsKey: "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Open Design.exe",
-      displayName: "Open Design",
-      registryKey: "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Open Design-release-stable-win",
-      shortcutName: "Open Design.lnk",
-      uninstallerName: "Uninstall Open Design.exe",
+      appPathsKey: `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${channelName("stable")}.exe`,
+      displayName: channelName("stable"),
+      registryKey: `${registryRoot}-release-stable-win`,
+      shortcutName: `${channelName("stable")}.lnk`,
+      uninstallerName: `Uninstall ${channelName("stable")}.exe`,
     });
   });
 
   it("uses first-class beta display identity for beta release namespaces", () => {
     expect(resolveWinInstallIdentity({ namespace: "release-beta-win" })).toMatchObject({
-      appPathsKey: "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Open Design Beta.exe",
-      displayName: "Open Design Beta",
-      registryKey: "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Open Design-release-beta-win",
-      shortcutName: "Open Design Beta.lnk",
-      uninstallerName: "Uninstall Open Design Beta.exe",
+      appPathsKey: `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${channelName("beta")}.exe`,
+      displayName: channelName("beta"),
+      registryKey: `${registryRoot}-release-beta-win`,
+      shortcutName: `${channelName("beta")}.lnk`,
+      uninstallerName: `Uninstall ${channelName("beta")}.exe`,
     });
   });
 
   it("keeps non-release beta-like namespaces isolated from the real beta channel identity", () => {
     expect(resolveWinInstallIdentity({ namespace: "beta-local-flow" })).toMatchObject({
-      appPathsKey: "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Open Design beta-local-flow.exe",
-      displayName: "Open Design beta-local-flow",
-      registryKey: "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Open Design-beta-local-flow",
-      shortcutName: "Open Design beta-local-flow.lnk",
-      uninstallerName: "Uninstall Open Design beta-local-flow.exe",
+      appPathsKey: `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${PRODUCT_NAME} beta-local-flow.exe`,
+      displayName: `${PRODUCT_NAME} beta-local-flow`,
+      registryKey: `${registryRoot}-beta-local-flow`,
+      shortcutName: `${PRODUCT_NAME} beta-local-flow.lnk`,
+      uninstallerName: `Uninstall ${PRODUCT_NAME} beta-local-flow.exe`,
     });
   });
 
   it("uses first-class preview display identity for preview release namespaces", () => {
     expect(resolveWinInstallIdentity({ namespace: "release-preview-win" })).toMatchObject({
-      appPathsKey: "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Open Design Preview.exe",
-      displayName: "Open Design Preview",
-      registryKey: "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Open Design-release-preview-win",
-      shortcutName: "Open Design Preview.lnk",
-      uninstallerName: "Uninstall Open Design Preview.exe",
+      appPathsKey: `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${channelName("preview")}.exe`,
+      displayName: channelName("preview"),
+      registryKey: `${registryRoot}-release-preview-win`,
+      shortcutName: `${channelName("preview")}.lnk`,
+      uninstallerName: `Uninstall ${channelName("preview")}.exe`,
     });
   });
 
@@ -69,15 +83,15 @@ describe("resolveWinInstallIdentity", () => {
       appVersion: "0.8.0-prerelease.2",
       namespace: "release-stable-win",
     })).toMatchObject({
-      appPathsKey: "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Open Design Prerelease.exe",
-      displayName: "Open Design Prerelease",
-      registryKey: "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Open Design-release-stable-win",
-      shortcutName: "Open Design Prerelease.lnk",
-      uninstallerName: "Uninstall Open Design Prerelease.exe",
+      appPathsKey: `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${channelName("prerelease")}.exe`,
+      displayName: channelName("prerelease"),
+      registryKey: `${registryRoot}-release-stable-win`,
+      shortcutName: `${channelName("prerelease")}.lnk`,
+      uninstallerName: `Uninstall ${channelName("prerelease")}.exe`,
     });
     expect(resolveWinInstallIdentity({ namespace: "release-prerelease-win" })).toMatchObject({
-      displayName: "Open Design Prerelease",
-      shortcutName: "Open Design Prerelease.lnk",
+      displayName: channelName("prerelease"),
+      shortcutName: `${channelName("prerelease")}.lnk`,
     });
   });
 

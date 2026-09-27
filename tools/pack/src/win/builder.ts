@@ -62,6 +62,7 @@ import {
   rewriteWinExecutableVersion,
 } from "./version-resource.js";
 import { buildWinPortableZip } from "./zip.js";
+import { assertHermesVendorExcludedInTree } from "./release-artifacts.js";
 import type {
   ElectronBuilderDirCacheMetadata,
   WinBuiltAppManifest,
@@ -575,6 +576,13 @@ export async function runElectronBuilder(
     "main.cjs",
     ...(usePrebundle ? [WIN_PREBUNDLED_DAEMON_CLI_RELATIVE_PATH, WIN_PREBUNDLED_DAEMON_SIDECAR_RELATIVE_PATH, WIN_PREBUNDLED_WEB_SIDECAR_RELATIVE_PATH].map((entry) => entry.slice("app/".length)) : []),
   ]);
+  // `vendor/nous-hermes` is a development-only submodule; shipping it would put
+  // the entire upstream Hermes repository inside the installer. This is the
+  // detective half of the gate (the preventive half is the `!**/vendor/**`
+  // electron-builder pattern), and it runs on cache hits too so a poisoned cache
+  // cannot smuggle it through.
+  const assertNoVendoredHermes = (unpackedRoot: string) =>
+    assertHermesVendorExcludedInTree(winUnpackedAppRoot(unpackedRoot));
   const auditOutput = "web-standalone-after-pack-audit.json";
   const node = {
     id: "win.electron-builder-dir",
@@ -585,8 +593,10 @@ export async function runElectronBuilder(
         join(entryRoot, "builder", "win-unpacked"),
       );
       if (validationError != null) return { reason: validationError };
-      try { await assertSidecarRuntime(join(entryRoot, "builder", "win-unpacked")); }
-      catch (error) { return { reason: String(error) }; }
+      try {
+        await assertSidecarRuntime(join(entryRoot, "builder", "win-unpacked"));
+        await assertNoVendoredHermes(join(entryRoot, "builder", "win-unpacked"));
+      } catch (error) { return { reason: String(error) }; }
       return null;
     },
     build: async ({ entryRoot }: { entryRoot: string }): Promise<ElectronBuilderDirCacheMetadata> => {
@@ -598,6 +608,7 @@ export async function runElectronBuilder(
       );
       await assertWinUnpackedNodePtyRuntime(join(entryRoot, "builder", "win-unpacked"));
       await assertSidecarRuntime(join(entryRoot, "builder", "win-unpacked"));
+      await assertNoVendoredHermes(join(entryRoot, "builder", "win-unpacked"));
       return { packagedAppKey, packagedVersion };
     },
   };

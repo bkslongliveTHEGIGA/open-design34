@@ -1,4 +1,12 @@
-export const PRODUCT_NAME = "Open Design";
+/**
+ * Product name for the Windows install identity.
+ *
+ * Drives the installed executable name, Start-menu shortcut and Add/Remove
+ * Programs entry, so it is the name a user sees. The `open-design` namespace and
+ * `OD_*` environment prefixes stay as they are — see the note in
+ * `packages/release/src/index.ts`.
+ */
+export const PRODUCT_NAME = "Hermes Design Studio";
 export const DESKTOP_LOG_ECHO_ENV = "OD_DESKTOP_LOG_ECHO";
 export const WEB_STANDALONE_HOOK_CONFIG_ENV = "OD_TOOLS_PACK_WEB_STANDALONE_HOOK_CONFIG";
 export const WEB_STANDALONE_RESOURCE_NAME = "open-design-web-standalone";
@@ -20,6 +28,14 @@ export const ELECTRON_BUILDER_FILE_PATTERNS = [
   "!**/node_modules/better-sqlite3/build/Release/obj/**",
   "!**/node_modules/better-sqlite3/deps",
   "!**/node_modules/better-sqlite3/deps/**",
+  // The vendored Hermes submodule is a development dependency: it exists so the
+  // bridge can be written and verified against the real upstream source, and it
+  // must never ship. Excluding it here is the preventive half of the gate;
+  // `assertHermesVendorExcluded` in `release-artifacts.ts` is the detective half
+  // that fails the build if this exclusion is ever bypassed.
+  "!**/vendor/nous-hermes",
+  "!**/vendor/nous-hermes/**",
+  "!**/vendor/**/hermes-agent/**",
 ] as const;
 export const NSIS_INSTALLER_LANGUAGE_BY_WEB_LOCALE = {
   en: "en_US",

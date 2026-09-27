@@ -53,7 +53,17 @@ export const RELEASE_PLATFORM_NAMESPACE_SUFFIXES = Object.freeze({
   win: "win",
 } as const satisfies Record<ReleasePlatform, string>);
 
-const PRODUCT_NAME = "Open Design";
+/**
+ * The product name presented to users: installers, window titles, the Start
+ * menu, Add/Remove Programs and the about panel.
+ *
+ * Only the *display* identity changed. Package names (`@open-design/*`), the
+ * `io.open-design.desktop` appId, `OD_*` environment variables and the
+ * `open-design` namespace are internal identifiers and deliberately stay put:
+ * renaming them would orphan installed users' registry keys, userData paths and
+ * updater feeds, which is a functional regression rather than a rebrand.
+ */
+const PRODUCT_NAME = "Hermes Design Studio";
 const DEFAULT_NAMESPACE = "open-design";
 
 const descriptors: Record<"prerelease" | "stable", ReleaseChannelDescriptor> = {

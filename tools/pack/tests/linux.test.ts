@@ -57,6 +57,7 @@ import type { ToolPackConfig } from "@/config/index.js";
 import {
   buildDockerArgs,
   cleanupPackedLinuxNamespace,
+  PRODUCT_NAME as LINUX_PRODUCT_NAME,
   createLinuxDesktopLaunchEnv,
   inspectPackedLinuxApp,
   LINUX_APPIMAGE_EXECUTABLE_ARGS,
@@ -667,7 +668,7 @@ describe("renderLinuxAppImageAppRun", () => {
 
     expect(out).toContain("unset ELECTRON_RUN_AS_NODE");
     expect(out.indexOf("unset ELECTRON_RUN_AS_NODE")).toBeLessThan(out.indexOf('exec "$BIN"'));
-    expect(out).toContain('BIN="$APPDIR/Open Design"');
+    expect(out).toContain(`BIN="$APPDIR/${LINUX_PRODUCT_NAME}"`);
   });
 
   it("preserves AppImageLauncher install-only behavior", () => {
@@ -695,7 +696,7 @@ describe("renderLinuxAppImageAppRun", () => {
     const appDir = join(root, "AppDir");
     const appRunPath = join(appDir, "AppRun");
     const observedEnvPath = join(root, "observed-env.txt");
-    const electronPath = join(appDir, "Open Design");
+    const electronPath = join(appDir, LINUX_PRODUCT_NAME);
 
     try {
       await mkdir(appDir, { recursive: true });
@@ -904,7 +905,7 @@ describe("matchesAppImageProcess", () => {
     const ok = matchesAppImageProcess(
       {
         pid: 1234,
-        executable: "/tmp/appimage_extracted_fe548e54/Open Design",
+        executable: `/tmp/appimage_extracted_fe548e54/${LINUX_PRODUCT_NAME}`,
         env: { APPIMAGE: "/tmp/appimage_extracted_fe548e54/AppRun" },
       },
       installPath,
@@ -916,7 +917,7 @@ describe("matchesAppImageProcess", () => {
     const ok = matchesAppImageProcess(
       {
         pid: 1234,
-        executable: "/tmp/appimage_extracted_fe548e54/Open Design",
+        executable: `/tmp/appimage_extracted_fe548e54/${LINUX_PRODUCT_NAME}`,
         env: { APPIMAGE: "/tmp/other/AppRun" },
       },
       installPath,
@@ -928,7 +929,7 @@ describe("matchesAppImageProcess", () => {
     const ok = matchesAppImageProcess(
       {
         pid: 1234,
-        executable: "/tmp/appimage_extracted_fe548e54/Open Design",
+        executable: `/tmp/appimage_extracted_fe548e54/${LINUX_PRODUCT_NAME}`,
         env: { APPIMAGE: installPath },
       },
       installPath,
@@ -940,7 +941,7 @@ describe("matchesAppImageProcess", () => {
     const ok = matchesAppImageProcess(
       {
         pid: 1234,
-        executable: "/tmp/appimage_extracted_fe548e54/Open Design",
+        executable: `/tmp/appimage_extracted_fe548e54/${LINUX_PRODUCT_NAME}`,
         env: { APPIMAGE: "/elsewhere/Other.AppImage" },
       },
       installPath,

@@ -4,6 +4,14 @@
 @import './styles/material.css';
 @import './styles/app-wash.css';
 @import './styles/base.css';
+/*
+ * Hermes Design Studio brand tokens and vendored @font-face rules.
+ * GENERATED — edit apps/desktop/src/main/hermes/hermes-brand.ts and run
+ * `pnpm exec tsx scripts/hermes/generate-brand-css.ts` instead of editing it.
+ * Loaded after base.css so the brand faces sit next to the existing ones and
+ * the --hermes-* namespace is defined before any component consumes it.
+ */
+@import './styles/hermes-brand.css';
 @import '../../../packages/components/src/styles.css';
 @import './styles/primitives.css';
 @import './styles/plan-badge.css';
