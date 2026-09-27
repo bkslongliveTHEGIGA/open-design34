@@ -2,23 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { Icon } from './Icon';
 import { captureAndUploadChatScrollForensics } from '../observability/chat-scroll-forensics';
+import type { DesktopExportResult } from '../desktop-bridge';
 
-// Mirrors what apps/desktop preload exposes via contextBridge. Kept inline
-// so the web bundle does not import the desktop package.
-type DesktopExportResult =
-  | { ok: true; path: string }
-  | { ok: false; cancelled: true }
-  | { ok: false; cancelled: false; message: string };
-
-interface OpenDesignDesktopApi {
-  exportDiagnostics(): Promise<DesktopExportResult>;
-}
-
-declare global {
-  interface Window {
-    openDesignDesktop?: OpenDesignDesktopApi;
-  }
-}
+// The preload bridge surface is declared once, in ../desktop-bridge, so that
+// every consumer sees the same shape instead of drifting private copies.
 
 const DIAGNOSTICS_EXPORT_PATH = '/api/diagnostics/export';
 const DIAGNOSTICS_FILENAME_PREFIX = 'open-design-diagnostics';

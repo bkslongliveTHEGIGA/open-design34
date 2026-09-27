@@ -153,6 +153,58 @@ ${variableLines}
   color: var(--hermes-brand-danger);
   border-color: var(--hermes-brand-danger-soft);
 }
+
+/*
+ * Connection indicator (apps/web/src/components/HermesConnectionStatus.tsx).
+ *
+ * Standalone deliberately shares the neutral surface rather than the danger
+ * one: running without Hermes is a supported mode, not a fault, and styling it
+ * as an error would misrepresent it.
+ */
+.hermes-connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--hermes-brand-neutral-light);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.hermes-connection-status__label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hermes-connection-status__detail {
+  color: inherit;
+  opacity: 0.75;
+  /* Model ids and project ids are machine strings; keep them out of the
+   * proportional face and stop them forcing the pill to wrap. */
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 32ch;
+}
+
+.hermes-connection-status__action {
+  appearance: none;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.hermes-connection-status__action:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
 `;
 }
 

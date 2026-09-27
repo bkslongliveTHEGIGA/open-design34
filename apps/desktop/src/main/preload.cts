@@ -383,7 +383,73 @@ const hostBridge = {
 
 contextBridge.exposeInMainWorld(OPEN_DESIGN_HOST_GLOBAL, hostBridge);
 
+/**
+ * Channel names for the Hermes bridge. Mirrors `HERMES_IPC` in
+ * `src/main/hermes-desktop.ts`; kept as literals here because the preload must
+ * not import from the main-process module graph.
+ */
+const HERMES_CHANNELS = Object.freeze({
+  getState: 'hermes:get-state',
+  reconnect: 'hermes:reconnect',
+  setTaskState: 'hermes:set-task-state',
+  stateChanged: 'hermes:state-changed',
+  actionRequested: 'hermes:action-requested',
+  deepLink: 'hermes:deep-link',
+});
+
+/** Wrap a main→renderer channel into a subscribe/unsubscribe pair. */
+function subscribeHermesEvent(channel: string, handler: (payload: unknown) => void): () => void {
+  const listener = (_event: unknown, payload: unknown): void => {
+    try {
+      handler(payload);
+    } catch (error) {
+      // A throwing renderer handler must not break the IPC pump for the other
+      // subscribers on this channel.
+      console.warn(`[hermes] ${channel} handler failed`, error);
+    }
+  };
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+/**
+ * Hermes Design Studio bridge surface.
+ *
+ * Folded into `openDesignDesktop` rather than exposed as its own global:
+ * `tests/main/preload-host-boundary.test.ts` pins this preload to exactly two
+ * `exposeInMainWorld` calls, on purpose — every extra window global is more
+ * renderer-reachable surface for no benefit.
+ *
+ * The state object returned here is the bridge's already-redacted snapshot: no
+ * token, credential, cookie or `model_config` crosses this boundary, and main is
+ * the side that decides that, not the renderer.
+ *
+ * Every subscription returns its own unsubscribe, because the renderer
+ * re-mounts on navigation and a leaked `ipcRenderer.on` would fire into a dead
+ * component tree.
+ */
 contextBridge.exposeInMainWorld('openDesignDesktop', {
   exportDiagnostics: (): Promise<DesktopDiagnosticsExportResult> =>
     ipcRenderer.invoke(DESKTOP_DIAGNOSTICS_IPC_CHANNEL) as Promise<DesktopDiagnosticsExportResult>,
+  hermes: {
+    /** The redacted bridge snapshot, including the connection state. */
+    getState: (): Promise<unknown> => ipcRenderer.invoke(HERMES_CHANNELS.getState),
+    /** Ask the bridge to re-run discovery now. */
+    reconnect: (): Promise<unknown> => ipcRenderer.invoke(HERMES_CHANNELS.reconnect),
+    /** Report this renderer's current task state to the bridge. */
+    setTaskState: (state: string): Promise<unknown> =>
+      ipcRenderer.invoke(HERMES_CHANNELS.setTaskState, state),
+    onStateChanged: (handler: (payload: unknown) => void): (() => void) =>
+      subscribeHermesEvent(HERMES_CHANNELS.stateChanged, handler),
+    onActionRequested: (handler: (payload: unknown) => void): (() => void) =>
+      subscribeHermesEvent(HERMES_CHANNELS.actionRequested, handler),
+    onDeepLink: (handler: (url: string) => void): (() => void) =>
+      subscribeHermesEvent(HERMES_CHANNELS.deepLink, (payload: unknown) => {
+        if (typeof payload === 'string') handler(payload);
+      }),
+  },
 });
+
+

@@ -66,6 +66,7 @@ import {
   isVisibleLocalCliAgent,
 } from '../utils/visibleAgents';
 import { ExportDiagnosticsRow } from './ExportDiagnosticsButton';
+import { HermesConnectionStatus } from './HermesConnectionStatus';
 import { Icon } from './Icon';
 import { LabsSection } from './LabsSection';
 import { defaultAgentModelId, effectiveAgentModelChoice } from './agentModelSelection';
@@ -6238,6 +6239,19 @@ export function SettingsDialog({
                   )}
                 </div>
               ) : null}
+              {/* Hermes connection state. Reads the real bridge snapshot from
+                  the desktop preload; standalone mode is a supported state, so
+                  it is shown neutrally rather than as a fault. */}
+              <div className="settings-about-diagnostics">
+                <div className="settings-about-diagnostics-text">
+                  <h4>Hermes</h4>
+                  <p className="hint">
+                    Design Studio uses Hermes for models, projects, permissions and theme when
+                    it is installed. Everything here still works without it.
+                  </p>
+                </div>
+                <HermesConnectionStatus />
+              </div>
               <div className="settings-about-diagnostics">
                 <div className="settings-about-diagnostics-text">
                   <h4>{t('diagnostics.exportTitle')}</h4>

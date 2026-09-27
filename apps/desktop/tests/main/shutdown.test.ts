@@ -54,6 +54,9 @@ function shutdownHarness(options: {
     updater: { recordLifecycle },
     options: { beforeShutdown, quiesceRendererTransport }, desktop: { close }, app: { quit, on }, process: { exit },
     updateScheduler: { stop: vi.fn() }, disposeMenu: vi.fn(), removeDiagnosticsIpc: vi.fn(),
+    // `shutdown()` stops the Hermes bridge poll before the sidecars wind down,
+    // so the sandbox has to supply it like every other cleanup handle.
+    hermesStop: vi.fn(),
     endDesktopSessionCleanly: endSession, sessionStatePath: "test-session", console: { info: vi.fn(), error: vi.fn() },
   };
   const code = ts.transpileModule(declarations.join("\n"), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
