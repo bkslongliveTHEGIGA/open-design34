@@ -108,7 +108,7 @@ jobs:
           echo "Building Hermes Design Studio for Windows x64..."
           echo "Attempting real Electron build via tools-pack..."
           # Try real build - this should produce valid PE that opens Hermes Design Studio frame
-          pnpm exec tools-pack win build --to nsis --app-version ${{ inputs.version || github.ref_name }} 2>&1 | tee build.log || echo "Electron build failed or incomplete, will use valid PE fallback"
+          NODE_OPTIONS=--max-old-space-size=4096 pnpm exec tools-pack win build --to all --app-version ${{ inputs.version || github.ref_name }} 2>&1 | tee build.log || echo "Electron build failed or incomplete, will use valid PE fallback"
           echo "Build log tail:"
           tail -50 build.log || true
           echo "Searching for built artifacts..."
