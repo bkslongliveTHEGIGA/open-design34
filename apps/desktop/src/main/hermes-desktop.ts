@@ -18,6 +18,8 @@ import {
   HERMES_ACTION_NAMESPACE,
   HERMES_BRIDGE_POLL_INTERVAL_MS,
   HERMES_FLOATING_CONTROLS,
+  buildHermesCodeHandoff,
+  toHermesArtifactDescriptor,
   HERMES_DESIGN_STUDIO_PRODUCT_NAME,
   createHermesBridge,
   createHermesActionRegistry,
@@ -177,6 +179,48 @@ export function createHermesDesktopRuntime(deps: HermesDesktopRuntimeDeps): Herm
       );
     },
   });
+
+  /**
+   * Artifact actions are pure transformations over data the caller supplies, so
+   * main services them directly through the real adapter rather than forwarding
+   * them. The UI-bound actions (`focus`, `preview`, `compare`, `open`) have no
+   * handler here on purpose — those are forwarded to the renderer.
+   */
+  registry.register("getArtifacts" as never, ((invocation: { args?: Record<string, unknown> }) => {
+    const artifacts = invocation.args?.artifacts;
+    if (!Array.isArray(artifacts)) return { artifacts: [] };
+    return {
+      artifacts: artifacts
+        .filter(isPlainRecord)
+        .map((entry) =>
+          toHermesArtifactDescriptor({
+            artifactId: typeof entry.artifactId === "string" ? entry.artifactId : "",
+            manifest: isPlainRecord(entry.manifest) ? entry.manifest : entry,
+            context: emptyContext(),
+            ...(typeof entry.version === "number" ? { version: entry.version } : {}),
+            ...(typeof entry.previewUrl === "string" ? { previewUrl: entry.previewUrl } : {}),
+          }),
+        )
+        .filter((descriptor) => descriptor.artifactId.length > 0),
+    };
+  }) as never);
+
+  registry.register("sendToCode" as never, ((invocation: { args?: Record<string, unknown> }) => {
+    const args = invocation.args ?? {};
+    const handoff = buildHermesCodeHandoff({
+      artifactId: typeof args.artifactId === "string" ? args.artifactId : "",
+      manifest: isPlainRecord(args.manifest) ? args.manifest : {},
+      context: emptyContext(),
+      variantId: typeof args.variantId === "string" ? args.variantId : null,
+      intent: typeof args.intent === "string" ? args.intent : null,
+      ...(typeof args.handoffKind === "string" ? { handoffKind: args.handoffKind as never } : {}),
+      ...(typeof args.target === "string" ? { target: args.target } : {}),
+    });
+    if (handoff == null) {
+      return { ok: false, error: "sendToCode requires artifactId and a manifest with an entry" };
+    }
+    return { ok: true, handoff };
+  }) as never);
 
   for (const [name, handler] of Object.entries(deps.actionHandlers ?? {})) {
     registry.register(name as never, handler as never);
