@@ -1,0 +1,29 @@
+{
+  "name": "@open-design/hermes-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hermes Design Studio Bridge - Shared types and contracts for Hermes integration",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "24.12.2",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": "~24"
+  }
+}
