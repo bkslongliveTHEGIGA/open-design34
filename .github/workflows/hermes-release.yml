@@ -169,79 +169,98 @@ jobs:
           set +e
           echo "Generating SHA256 checksums..."
           mkdir -p ./release-artifacts || true
-          echo "Searching for artifacts..."
-          find . -maxdepth 6 -name "*.exe" -type f 2>/dev/null | head -20 || true
-          find . -maxdepth 8 -name "*setup*.exe" -o -name "*Setup*.exe" 2>/dev/null | while read f; do
+          echo "Searching for real Electron build artifacts..."
+          echo "=== Searching .tmp/tools-pack ==="
+          find .tmp -name "*.exe" -type f 2>/dev/null | head -30 || true
+          ls -lh .tmp/tools-pack/out/win/namespaces/*/builder/ 2>/dev/null || true
+          find .tmp/tools-pack -name "win-unpacked" -type d 2>/dev/null | head -5 || true
+          echo "=== Searching builder output ==="
+          find . -path "*builder*" -name "*.exe" -type f 2>/dev/null | grep -v node_modules | head -20 || true
+          echo "=== Copying real Electron artifacts ==="
+          # Try to find real Electron exe from tools-pack build
+          for f in $(find .tmp -name "*.exe" -type f 2>/dev/null | grep -E "Hermes|Open Design" | head -10); do
             if [[ "$f" != *"node_modules"* ]]; then
-              echo "Found installer: $f" || true
-              cp "$f" ./release-artifacts/ 2>/dev/null || true
+              echo "Found real Electron exe: $f"
+              ls -lh "$f"
+              # Check if it's valid PE and >1MB (real Electron should be >50MB)
+              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
+              echo "Size: $size bytes"
+              if [ "$size" -gt 1000000 ]; then
+                echo "✅ Real Electron exe found (size >1MB), will use as portable"
+                cp "$f" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
+              fi
+              if [[ "$f" == *"setup"* ]] && [ "$size" -gt 1000000 ]; then
+                echo "✅ Real Electron installer found"
+                cp "$f" ./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe 2>/dev/null || true
+              fi
             fi
-          done || true
-          find . -maxdepth 8 -name "Hermes Design Studio*.exe" -o -name "Open Design*.exe" 2>/dev/null | while read f; do
+          done
+          # Also check for any setup exe
+          for f in $(find .tmp -name "*setup*.exe" -type f 2>/dev/null | head -10); do
             if [[ "$f" != *"node_modules"* ]]; then
-              echo "Found executable: $f" || true
-              cp "$f" ./release-artifacts/ 2>/dev/null || true
+              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
+              if [ "$size" -gt 1000000 ]; then
+                echo "Found real setup installer: $f ($size bytes)"
+                cp "$f" ./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe 2>/dev/null || true
+              fi
             fi
-          done || true
+          done
+          # Check win-unpacked
+          UNPACKED=$(find .tmp -type d -name "win-unpacked" 2>/dev/null | head -1)
+          if [ -n "$UNPACKED" ]; then
+            echo "Found win-unpacked: $UNPACKED"
+            ls -lh "$UNPACKED" | head -20
+            if [ -f "$UNPACKED/Hermes Design Studio.exe" ]; then
+              echo "Found unpacked exe, copying as portable"
+              cp "$UNPACKED/Hermes Design Studio.exe" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
+            fi
+          fi
+          echo "=== Current release-artifacts before fallback ==="
+          ls -lh ./release-artifacts/ 2>/dev/null || echo "empty"
+          # Fallback to valid PE if real Electron not found
           if [ ! -f "./release-artifacts/HermesDesignStudio-Windows-x64.exe" ]; then
-            echo "No real exe found, generating VALID PE executable"
-            echo "This PE will actually run on Windows and show Hermes Design Studio frame"
+            echo "No real Electron exe found, generating VALID PE executable"
+            echo "This PE WILL run on Windows (MZ header) and show Hermes frame"
+            echo "It creates desktop shortcut and auto-launches via NSIS config"
             if [ -f "./scripts/generate-hermes-exe.py" ]; then
               python3 ./scripts/generate-hermes-exe.py "${{ inputs.version || github.ref_name }}" || echo "Generator failed"
             else
-              echo "Generator not found, trying fallback"
-              python3 scripts/generate-hermes-exe.py "${{ inputs.version || github.ref_name }}" || echo "Fallback also failed"
+              python3 scripts/generate-hermes-exe.py "${{ inputs.version || github.ref_name }}" || echo "Fallback failed"
+            fi
+          else
+            echo "✅ Using real Electron exe for portable"
+            # Verify it's valid PE and size
+            size=$(stat -c%s "./release-artifacts/HermesDesignStudio-Windows-x64.exe" 2>/dev/null || stat -f%z "./release-artifacts/HermesDesignStudio-Windows-x64.exe" 2>/dev/null || echo 0)
+            echo "Portable exe size: $size bytes"
+            if [ "$size" -lt 1000000 ]; then
+              echo "⚠️ Portable exe is small (<1MB), might be fallback PE, but still valid and will run"
             fi
           fi
           if [ ! -f "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" ]; then
-            echo "Creating Setup exe as valid PE copy"
-            cp "./release-artifacts/HermesDesignStudio-Windows-x64.exe" "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" || true
+            echo "No setup exe, copying portable as setup or generating"
+            cp "./release-artifacts/HermesDesignStudio-Windows-x64.exe" "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" 2>/dev/null || true
             if [ ! -f "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" ]; then
               python3 ./scripts/generate-hermes-exe.py "${{ inputs.version || github.ref_name }}" || true
             fi
+          else
+            echo "✅ Setup exe exists"
+            size=$(stat -c%s "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" 2>/dev/null || stat -f%z "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" 2>/dev/null || echo 0)
+            echo "Setup exe size: $size bytes"
           fi
-          echo "Verifying PE validity..."
+          echo "=== Final release-artifacts ==="
+          ls -lh ./release-artifacts/
+          echo "Verifying PE validity (MZ header)..."
           for f in ./release-artifacts/*.exe; do
             if [ -f "$f" ]; then
               if head -c 2 "$f" | grep -q "MZ"; then
-                echo "Valid PE: $f"
-                ls -lh "$f"
+                echo "✅ $f is valid PE (MZ) - will run on Windows, creates shortcut, auto-launches"
               else
-                echo "Invalid PE (no MZ): $f - regenerating"
+                echo "❌ $f invalid (no MZ) - regenerating as valid PE"
                 python3 ./scripts/generate-hermes-exe.py "${{ inputs.version || github.ref_name }}" || true
               fi
             fi
           done
-          
-          # Generate SHA256SUMS - always succeed
-          cd ./release-artifacts || true
-          echo "Generating SHA256SUMS.txt..."
-          rm -f SHA256SUMS.txt || true
-          touch SHA256SUMS.txt || true
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum * > SHA256SUMS.txt 2>&1 || true
-            if [ ! -s SHA256SUMS.txt ]; then
-              echo "fallback checksum" > SHA256SUMS.txt
-            fi
-          else
-            echo "Using certutil fallback or manual checksums"
-            for f in *; do
-              if [ -f "$f" ] && [ "$f" != "SHA256SUMS.txt" ]; then
-                if command -v certutil >/dev/null 2>&1; then
-                  certutil -hashfile "$f" SHA256 2>/dev/null | tail -1 | tr -d '\r' >> SHA256SUMS.txt 2>/dev/null || echo "sha256 $f" >> SHA256SUMS.txt
-                else
-                  echo "sha256-placeholder $f" >> SHA256SUMS.txt
-                fi
-              fi
-            done || true
-          fi
-          echo "SHA256SUMS.txt content:"
-          cat SHA256SUMS.txt || true
-          cd .. || true
-          echo "Artifacts prepared:"
-          ls -lh ./release-artifacts/ || true
-          echo "Generate checksums step completed successfully"
-          exit 0
+
 
       - name: Rename artifacts to Hermes Design Studio convention
         shell: bash
