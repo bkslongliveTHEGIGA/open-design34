@@ -2244,7 +2244,7 @@ export async function createDesktopRuntime(options: DesktopRuntimeOptions): Prom
 
   const consoleEntries: DesktopConsoleEntry[] = [];
   const petWindow = createDesktopPetWindow(preloadPath, options.osLocale);
-  const windowTitle = options.windowTitle ?? "OpenDesign";
+  const windowTitle = options.windowTitle ?? "Hermes Design Studio";
   const window = new BrowserWindow({
     height: 900,
     icon: resolveDesktopIconPath(),

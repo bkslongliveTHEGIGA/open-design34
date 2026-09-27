@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/NousResearch/hermes-agent",
+  "branch": "main",
+  "pinned_at": "2026-09-27",
+  "note": "Run git submodule update --init --depth 1 to fetch full source for development"
+}

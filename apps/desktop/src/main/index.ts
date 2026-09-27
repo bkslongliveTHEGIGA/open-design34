@@ -41,6 +41,7 @@ import {
 
 import { createDesktopRuntime, type DesktopRuntime } from "./runtime.js";
 import { dispatchInviteDeeplink, registerInviteDeeplink } from "./invite-deeplink.js";
+import { initializeHermesBridge, getHermesBridge } from "./hermes/index.js";
 import { focusDesktopForDeeplink } from "./deeplink-focus.js";
 import { setUpDesktopCrashReporter, writeDesktopGpuInfo } from "./crash-diagnostics.js";
 import { beginDesktopSession, clearReportedCrash, endDesktopSessionCleanly, markDesktopSessionRunning } from "./session-lifecycle.js";
@@ -1031,6 +1032,20 @@ export async function runDesktopMain(
       console.info("[open-design desktop] invite deeplink continuation completed", outcome);
     },
     protocolClientPath: options.inviteProtocolClientPath,
+  });
+
+  // Initialize Hermes Design Studio Bridge - automatic discovery and connection
+  void initializeHermesBridge().then((bridge) => {
+    console.info("[hermes design studio] bridge initialized", bridge.status());
+    // Log connection state changes
+    bridge.onConnectionStateChange((state) => {
+      console.info(`[hermes design studio] connection state: ${state}`);
+    });
+    bridge.onStatusChange((status) => {
+      console.info(`[hermes design studio] status: ${status.connectionState}, connected: ${status.isConnected}`);
+    });
+  }).catch((err) => {
+    console.warn("[hermes design studio] bridge initialization failed (standalone mode)", err);
   });
   const discoverUpdaterAppConfigBaseUrl = resolveDaemonBaseUrl(options);
   updateScheduler = createDesktopUpdaterScheduler(updater, {

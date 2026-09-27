@@ -1,5 +1,6 @@
-export const PRODUCT_NAME = "Open Design";
-
+export const PRODUCT_NAME = "Hermes Design Studio";
+export const PRODUCT_SHORT_NAME = "HermesDesignStudio";
+export const LEGACY_PRODUCT_NAME = "Open Design";
 export const INTERNAL_PACKAGES = [
   { directory: "packages/release", name: "@open-design/release" },
   { directory: "packages/components", name: "@open-design/components" },
@@ -40,9 +41,6 @@ export const ELECTRON_BUILDER_FILE_PATTERNS = [
   "!**/node_modules/better-sqlite3/deps",
   "!**/node_modules/better-sqlite3/deps/**",
 ] as const;
-// Keep Electron native UI resources aligned with the Web UI locale set.
-// Electron uses underscore-separated locale ids; its base "es" resource
-// covers the app's es-ES dictionary.
 export const MAC_ELECTRON_LANGUAGES = [
   "en",
   "de",
