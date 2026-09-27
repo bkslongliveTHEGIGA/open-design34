@@ -225,6 +225,40 @@ jobs:
           "out_root=$outRoot" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
         id: prepare
 
+      # Step 25 of the spec: "verifies the application starts". Uses the repo's
+      # own cold-start convergence (`tools-pack win start` waits for a desktop
+      # status snapshot before returning), so this is a real launch and not a
+      # file-existence check. A missing pid or a null status fails the job.
+      - name: Confirm the packaged app starts
+        id: smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $toolsPackDir = "${{ runner.temp }}/tools-pack"
+          $cacheDir = "${{ runner.temp }}/tools-pack-cache"
+          $namespace = "hermes-design-studio"
+
+          pnpm.cmd exec tools-pack win install --dir $toolsPackDir --cache-dir $cacheDir --namespace $namespace --json
+          if ($LASTEXITCODE -ne 0) { throw "win install exited with code $LASTEXITCODE" }
+
+          $startOutput = pnpm.cmd exec tools-pack win start --dir $toolsPackDir --cache-dir $cacheDir --namespace $namespace --json
+          if ($LASTEXITCODE -ne 0) { throw "win start exited with code $LASTEXITCODE" }
+          $startOutput | Set-Content -Path "${{ runner.temp }}/win-start.json" -Encoding utf8
+          $started = $startOutput | ConvertFrom-Json
+
+          Write-Host "pid: $($started.pid)"
+          Write-Host "executablePath: $($started.executablePath)"
+          if (-not $started.pid) { throw "packaged app did not report a pid" }
+          if ($null -eq $started.status) {
+            throw "packaged app started but never reported a status snapshot"
+          }
+          Write-Host "cold-start convergence reached; status snapshot received"
+
+          pnpm.cmd exec tools-pack win stop --dir $toolsPackDir --cache-dir $cacheDir --namespace $namespace --json
+          if ($LASTEXITCODE -ne 0) { throw "win stop exited with code $LASTEXITCODE" }
+          # Leave no installed state behind on the runner.
+          pnpm.cmd exec tools-pack win uninstall --dir $toolsPackDir --cache-dir $cacheDir --namespace $namespace --json
+
       - name: Verify checksums with an independent tool
         shell: bash
         run: |
