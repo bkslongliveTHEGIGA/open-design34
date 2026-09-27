@@ -1,0 +1,150 @@
+/*
+ * Hermes Design Studio brand tokens.
+ *
+ * GENERATED FILE — do not edit by hand.
+ * Regenerate with:  pnpm exec tsx scripts/hermes/generate-brand-css.ts
+ * Verify with:      pnpm exec tsx scripts/hermes/generate-brand-css.ts --check
+ *
+ * Source of truth: apps/desktop/src/main/hermes/hermes-brand.ts
+ * Upstream Hermes pin: 6f7a7991bb069db07ae74a479823ce8310f8c7e0
+ *
+ * Fonts
+ * -----
+ * Vendored from the pinned Hermes submodule into apps/web/public/fonts/hermes:
+ *   - RulesCompressed-Regular.woff2 (Rules Compressed, 400, compressed)
+ *   - RulesCompressed-Medium.woff2 (Rules Compressed, 500, compressed)
+ *   - RulesExpanded-Regular.woff2 (Rules Expanded, 400, expanded)
+ *   - RulesExpanded-Bold.woff2 (Rules Expanded, 700, expanded)
+ *
+ * Not vendored, and therefore not guaranteed to render:
+ *   - display: "Sigurd" is not vendored; the stack below resolves to it only if it is installed on the host.
+ *   - technical: "Courier Prime" is not vendored; the stack below resolves to it only if it is installed on the host.
+ *
+ * No silent lookalike substitution happens here: the specified face is always
+ * first in the stack, and the fallbacks are named faces rather than a generic
+ * guess. If a face is missing the text still renders, in the fallback.
+ */
+
+@font-face {
+  font-family: "Rules Compressed";
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: compressed;
+  font-display: swap;
+  src: url("/fonts/hermes/RulesCompressed-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Rules Compressed";
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: compressed;
+  font-display: swap;
+  src: url("/fonts/hermes/RulesCompressed-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Rules Expanded";
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: expanded;
+  font-display: swap;
+  src: url("/fonts/hermes/RulesExpanded-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Rules Expanded";
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: expanded;
+  font-display: swap;
+  src: url("/fonts/hermes/RulesExpanded-Bold.woff2") format("woff2");
+}
+
+:root {
+  --hermes-brand-primary: #0000F2;
+  --hermes-brand-light: #F5F5F5;
+  --hermes-brand-white: #FFFFFF;
+  --hermes-brand-accent: #EDFF45;
+  --hermes-brand-primary-hover: #0000D9;
+  --hermes-brand-primary-light: #1A1AFF;
+  --hermes-brand-primary-deep: #000099;
+  --hermes-brand-primary-mid: #0000CC;
+  --hermes-brand-primary-soft: #3333FF;
+  --hermes-brand-neutral-lightest: #E9ECEF;
+  --hermes-brand-neutral-light: #D0D0D0;
+  --hermes-brand-neutral-mid: #A0A0A0;
+  --hermes-brand-danger: #FF4444;
+  --hermes-brand-danger-soft: #FF8888;
+  --hermes-font-display: "Sigurd", "Rules Expanded", "Helvetica Neue", sans-serif;
+  --hermes-font-ui: "Rules Compressed", "Rules Expanded", "Helvetica Neue", Arial, sans-serif;
+  --hermes-font-technical: "Courier Prime", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Wordmarks. The product wordmark is set in the display face per the brand
+   * spec; `letter-spacing` and `text-transform` are part of the lockup, not
+   * incidental styling. */
+  --hermes-wordmark-text: HERMES;
+  --hermes-wordmark-font: "Sigurd", "Rules Expanded", "Helvetica Neue", sans-serif;
+  --hermes-wordmark-weight: 400;
+  --hermes-wordmark-letter-spacing: 0.14em;
+  --hermes-wordmark-transform: uppercase;
+  --hermes-product-name: "Hermes Design Studio";
+}
+
+/* The HERMES wordmark. */
+.hermes-wordmark {
+  font-family: var(--hermes-wordmark-font);
+  font-weight: var(--hermes-wordmark-weight);
+  letter-spacing: var(--hermes-wordmark-letter-spacing);
+  text-transform: var(--hermes-wordmark-transform);
+  color: var(--hermes-brand-primary);
+  /* The lockup is a brand mark, not body copy: keep it out of translation and
+   * out of hyphenation. */
+  white-space: nowrap;
+  hyphens: none;
+}
+
+/* The full product name, used where the wordmark alone is ambiguous. */
+.hermes-product-name {
+  font-family: var(--hermes-font-ui);
+  font-weight: 500;
+  color: var(--hermes-brand-primary);
+}
+
+/* Role helpers. These are the only places the font stacks should be consumed,
+ * so a stack change lands everywhere at once. */
+.hermes-font-display { font-family: var(--hermes-font-display); }
+.hermes-font-ui { font-family: var(--hermes-font-ui); }
+.hermes-font-technical { font-family: var(--hermes-font-technical); }
+
+/*
+ * Accent-on-primary is the combination the floating Design Studio controls use
+ * (chartreuse on Hermes blue). apps/desktop/tests/main/hermes/
+ * hermes-deeplink-controls-brand.test.ts asserts this pair clears WCAG AA for
+ * normal text, so the values below are not free to change independently.
+ */
+.hermes-surface-primary {
+  background-color: var(--hermes-brand-primary);
+  color: var(--hermes-brand-accent);
+}
+
+.hermes-surface-light {
+  background-color: var(--hermes-brand-light);
+  color: var(--hermes-brand-primary);
+}
+
+/* Focus ring: primary blue on light, accent on primary. */
+.hermes-focusable:focus-visible {
+  outline: 2px solid var(--hermes-brand-primary);
+  outline-offset: 2px;
+}
+
+.hermes-surface-primary .hermes-focusable:focus-visible {
+  outline-color: var(--hermes-brand-accent);
+}
+
+/* Danger states, e.g. a failed generation surfaced in the floating controls. */
+.hermes-state-danger {
+  color: var(--hermes-brand-danger);
+  border-color: var(--hermes-brand-danger-soft);
+}

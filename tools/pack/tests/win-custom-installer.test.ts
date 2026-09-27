@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 
 import type { ToolPackConfig } from "@/config/index.js";
 import { buildCustomWinNsisInstaller } from "@/win/custom-installer.js";
+import { PRODUCT_NAME } from "@/win/constants.js";
 import { resolveWinPaths } from "@/win/paths.js";
 
 const BUILD_HOST_NSIS_LOG_PATH = "D:\\a\\_temp\\tools-pack\\logs\\nsis.log";
-const PORTABLE_NSIS_LOG_DIR = "$TEMP\\Open Design\\test-namespace";
+const PORTABLE_NSIS_LOG_DIR = `$TEMP\\${PRODUCT_NAME}\\test-namespace`;
 const PORTABLE_NSIS_LOG_PATH = `${PORTABLE_NSIS_LOG_DIR}\\nsis.log`;
 
 function createConfig(root: string, portable: boolean): ToolPackConfig {

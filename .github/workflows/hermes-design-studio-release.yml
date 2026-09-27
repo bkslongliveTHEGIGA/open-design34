@@ -1,0 +1,312 @@
+name: hermes-design-studio-release
+
+# Production build for Hermes Design Studio Windows artifacts, triggered by a
+# version tag (v1.0.0, v1.1.0, ...).
+#
+# Pipeline: resolve tag -> verify the upstream pin against the real submodule ->
+# typecheck -> tests -> package on Windows -> assert the vendored Hermes source
+# is absent from the package -> rename to the published names + checksums ->
+# GitHub Release -> upload artifacts.
+#
+# The vendored submodule is checked out on the Linux verify job so the pin can
+# be checked against real upstream source. It is deliberately NOT checked out on
+# the Windows packaging job: the package must be built from this repository
+# alone, and `scripts/hermes/prepare-release-artifacts.ts` re-asserts that
+# absence over the finished package, exiting non-zero if it finds any.
+#
+# Nothing here reports success for work it did not do. Every gate is a real
+# command whose failure fails the job, and `release` is `needs:`-gated on the
+# packaging job, so a green release means the build actually ran.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, for example v1.0.0. Required."
+        required: true
+        type: string
+      dry_run:
+        description: "When true, build and verify but skip the GitHub Release."
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: hermes-design-studio-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  resolve:
+    name: Resolve tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      dry_run: ${{ steps.resolve.outputs.dry_run }}
+    steps:
+      - name: Resolve the tag to build
+        id: resolve
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${REF#refs/tags/}"
+            dry_run=false
+          else
+            tag="${INPUT_TAG}"
+            dry_run="${INPUT_DRY_RUN:-false}"
+          fi
+          if [ -z "${tag}" ]; then
+            echo "::error::no tag to build"
+            exit 1
+          fi
+          version="${tag#v}"
+          # Refuse a tag that is not a plain semver triple rather than emitting
+          # malformed artifact names downstream.
+          if ! printf '%s' "${version}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::tag '${tag}' is not vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${dry_run}" >> "$GITHUB_OUTPUT"
+          echo "building ${tag} (version ${version}, dry_run=${dry_run})"
+
+  verify:
+    name: Verify pin, typecheck and tests
+    runs-on: ubuntu-latest
+    needs: resolve
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+          # Needed to verify the pin against the real upstream source.
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Confirm the submodule is at the pinned commit
+        run: |
+          set -euo pipefail
+          pinned="$(node -p 'require("fs").readFileSync("apps/desktop/src/main/hermes/upstream-pin.ts","utf8").match(/HERMES_UPSTREAM_COMMIT = "([0-9a-f]{40})"/)[1]')"
+          actual="$(git -C vendor/nous-hermes rev-parse HEAD)"
+          echo "pinned: ${pinned}"
+          echo "actual: ${actual}"
+          if [ "${pinned}" != "${actual}" ]; then
+            echo "::error::vendor/nous-hermes is at ${actual}, pin says ${pinned}"
+            exit 1
+          fi
+
+      - name: Verify the upstream surface the bridge depends on
+        run: node scripts/hermes/verify-upstream-pin.mjs --require-submodule
+
+      - name: Prebuild workspace type declarations
+        run: |
+          pnpm --filter @open-design/daemon build
+          pnpm --filter @open-design/desktop build
+          pnpm --filter @open-design/web build:sidecar
+
+      - name: Typecheck workspaces
+        run: |
+          pnpm -r --filter '!open-design' --workspace-concurrency=4 --if-present run typecheck
+          pnpm exec tsc -p scripts/tsconfig.json --noEmit
+
+      - name: Confirm the generated brand stylesheet is not stale
+        run: pnpm exec tsx scripts/hermes/generate-brand-css.ts --check
+
+      - name: Repository layout policies
+        run: pnpm guard
+
+      - name: Desktop tests (includes the Hermes integration suite)
+        run: pnpm --filter @open-design/desktop test
+
+      - name: Packaging tests (includes the vendored-source exclusion gate)
+        run: pnpm --filter @open-design/tools-pack test
+
+      - name: Confirm the shipped build never imports the vendored submodule
+        run: pnpm --filter @open-design/desktop exec vitest run -c vitest.config.ts tests/main/hermes/hermes-security.test.ts
+
+  package-windows:
+    name: Package Windows artifacts
+    runs-on: windows-latest
+    needs: [resolve, verify]
+    steps:
+      # NOTE: no `submodules:` here — see the header comment.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+          fetch-depth: 1
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
+
+      # NSIS is what assembles the Windows installer; mirrors
+      # main-prerelease-win-smoke.yml, including the retry loop, because a
+      # transient choco failure must not fail a release build.
+      - name: Setup NSIS
+        shell: pwsh
+        run: |
+          function Test-Makensis {
+            [bool]((Get-Command makensis.exe -ErrorAction SilentlyContinue) -or (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe"))
+          }
+          if (Test-Makensis) { Write-Host "makensis already present"; exit 0 }
+          foreach ($attempt in 1..4) {
+            Write-Host "choco install nsis (attempt $attempt)"
+            choco install nsis -y --no-progress
+            if (Test-Makensis) { break }
+            Start-Sleep -Seconds (15 * $attempt)
+          }
+          if (-not (Test-Makensis)) {
+            Write-Error "NSIS install failed after 4 attempts"
+            exit 1
+          }
+
+      - name: Package the Windows app
+        id: win_build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $toolsPackDir = "${{ runner.temp }}/tools-pack"
+          $cacheDir = "${{ runner.temp }}/tools-pack-cache"
+          pnpm.cmd exec tools-pack win cleanup --dir $toolsPackDir --namespace hermes-design-studio --json
+          $buildOutput = pnpm.cmd exec tools-pack win build `
+            --dir $toolsPackDir `
+            --cache-dir $cacheDir `
+            --namespace hermes-design-studio `
+            --portable `
+            --app-version "${{ needs.resolve.outputs.version }}" `
+            --to all `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "tools-pack win build exited with code $LASTEXITCODE"
+          }
+          $buildOutput | Set-Content -Path "${{ runner.temp }}/win-build.json" -Encoding utf8
+          $build = $buildOutput | ConvertFrom-Json
+          Write-Host "outputRoot: $($build.outputRoot)"
+          Write-Host "unpackedPath: $($build.unpackedPath)"
+          Write-Host "installerPath: $($build.installerPath)"
+          Write-Host "portableZipPath: $($build.portableZipPath)"
+          if (-not $build.unpackedPath) { throw "build produced no unpackedPath" }
+          if (-not $build.installerPath) { throw "build produced no installerPath" }
+          "output_root=$($build.outputRoot)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      # Gate + rename + checksum. Exits non-zero if the package contains
+      # vendored Hermes source, if an expected artifact is missing, or if the
+      # written manifest does not verify against the files on disk.
+      - name: Assert no vendored Hermes source, rename and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $build = Get-Content "${{ runner.temp }}/win-build.json" -Raw | ConvertFrom-Json
+          $sourceRoot = Join-Path $build.outputRoot "builder"
+          $outRoot = Join-Path $env:RUNNER_TEMP "hermes-release"
+          pnpm.cmd exec tsx scripts/hermes/prepare-release-artifacts.ts `
+            --source-root $sourceRoot `
+            --out-root $outRoot `
+            --arch x64 `
+            --platform Windows
+          if ($LASTEXITCODE -ne 0) {
+            throw "release artifact preparation failed with code $LASTEXITCODE"
+          }
+          "out_root=$outRoot" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        id: prepare
+
+      - name: Verify checksums with an independent tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ steps.prepare.outputs.out_root }}"
+          for f in HermesDesignStudio-Windows-x64.exe HermesDesignStudio-Setup-Windows-x64.exe SHA256SUMS.txt; do
+            if [ ! -s "$f" ]; then
+              echo "::error::expected artifact missing or empty: $f"
+              exit 1
+            fi
+            echo "ok: $f"
+          done
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hermes-design-studio-windows-x64
+          path: |
+            ${{ steps.prepare.outputs.out_root }}/HermesDesignStudio-Windows-x64.exe
+            ${{ steps.prepare.outputs.out_root }}/HermesDesignStudio-Setup-Windows-x64.exe
+            ${{ steps.prepare.outputs.out_root }}/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [resolve, package-windows]
+    if: needs.resolve.outputs.dry_run != 'true'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hermes-design-studio-windows-x64
+          path: dist/hermes-release
+
+      - name: Re-verify checksums after download
+        run: |
+          set -euo pipefail
+          cd dist/hermes-release
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cd dist/hermes-release
+          notes="$(mktemp)"
+          {
+            echo "Hermes Design Studio ${TAG} — Windows x64."
+            echo
+            echo "| Artifact | SHA-256 |"
+            echo "| --- | --- |"
+            while read -r digest name; do
+              echo "| \`${name}\` | \`${digest}\` |"
+            done < SHA256SUMS.txt
+            echo
+            echo "Verify locally with \`sha256sum -c SHA256SUMS.txt\`."
+            echo
+            echo "This installer contains Hermes Design Studio only. It does not bundle,"
+            echo "install or modify a Hermes installation: Design Studio discovers an"
+            echo "existing Hermes at runtime and runs standalone without one."
+          } > "${notes}"
+          gh release create "${TAG}" \
+            --title "Hermes Design Studio ${TAG}" \
+            --notes-file "${notes}" \
+            HermesDesignStudio-Windows-x64.exe \
+            HermesDesignStudio-Setup-Windows-x64.exe \
+            SHA256SUMS.txt
+
+      - name: Confirm the release and its assets exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          assets="$(gh release view "${TAG}" --json assets --jq '.assets[].name')"
+          echo "${assets}"
+          for f in HermesDesignStudio-Windows-x64.exe HermesDesignStudio-Setup-Windows-x64.exe SHA256SUMS.txt; do
+            echo "${assets}" | grep -qx "${f}" || { echo "::error::asset not attached: ${f}"; exit 1; }
+          done
+          echo "release ${TAG} published with all three assets"

@@ -1,4 +1,14 @@
-export const PRODUCT_NAME = "Open Design";
+/**
+ * Product name for the macOS install identity.
+ *
+ * Kept in step with `PRODUCT_NAME` in `win/constants.ts` and in
+ * `packages/release/src/index.ts`: without it a non-release namespace would
+ * produce an "Open Design" bundle while a release channel produced a
+ * "Hermes Design Studio" one, so the same app would be named differently
+ * depending on how it was built. `appId` (`io.open-design.desktop`) and the
+ * `open-design` namespace stay — see the note in `packages/release/src/index.ts`.
+ */
+export const PRODUCT_NAME = "Hermes Design Studio";
 
 export const INTERNAL_PACKAGES = [
   { directory: "packages/release", name: "@open-design/release" },

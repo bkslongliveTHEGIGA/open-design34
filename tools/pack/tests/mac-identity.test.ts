@@ -3,7 +3,20 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { ToolPackConfig } from "@/config/index.js";
+import { releaseInstallIdentity } from "@open-design/release";
+
+import { PRODUCT_NAME } from "@/mac/constants.js";
 import { resolveMacInstallIdentity } from "@/mac/identity.js";
+
+/**
+ * Display identity follows `PRODUCT_NAME` / `releaseInstallIdentity(...)`. The
+ * `io.open-design.desktop*` appIds are internal identifiers and deliberately do
+ * NOT follow the display rename — changing them would break code-signing
+ * identity, notarization records and installed users' preferences.
+ */
+const channelName = (channel: "stable" | "beta" | "preview" | "prerelease"): string =>
+  releaseInstallIdentity(channel).productName;
+const escaped = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 import { resolveMacPaths } from "@/mac/paths.js";
 
 function makeConfig(root: string, namespace: string): ToolPackConfig {
@@ -47,10 +60,10 @@ describe("resolveMacInstallIdentity", () => {
   it("keeps stable builds on the canonical mac identity", () => {
     expect(resolveMacInstallIdentity(makeConfig("/work", "release-stable"))).toMatchObject({
       appId: "io.open-design.desktop",
-      installerTitle: "Open Design",
-      productName: "Open Design",
-      publicAppBundleName: "Open Design.app",
-      systemAppBundleName: "Open Design.app",
+      installerTitle: channelName("stable"),
+      productName: channelName("stable"),
+      publicAppBundleName: `${channelName("stable")}.app`,
+      systemAppBundleName: `${channelName("stable")}.app`,
     });
   });
 
@@ -59,13 +72,13 @@ describe("resolveMacInstallIdentity", () => {
 
     expect(resolveMacInstallIdentity(config)).toEqual({
       appId: "io.open-design.desktop.beta",
-      executableName: "Open Design Beta",
-      installerTitle: "Open Design Beta",
-      productName: "Open Design Beta",
-      publicAppBundleName: "Open Design Beta.app",
-      systemAppBundleName: "Open Design Beta.app",
+      executableName: channelName("beta"),
+      installerTitle: channelName("beta"),
+      productName: channelName("beta"),
+      publicAppBundleName: `${channelName("beta")}.app`,
+      systemAppBundleName: `${channelName("beta")}.app`,
     });
-    expect(resolveMacPaths(config).appPath).toMatch(/Open Design Beta\.app$/);
+    expect(resolveMacPaths(config).appPath).toMatch(new RegExp(`${escaped(channelName("beta"))}\\.app$`));
   });
 
   it("uses first-class preview app identity for preview release namespaces", () => {
@@ -73,13 +86,13 @@ describe("resolveMacInstallIdentity", () => {
 
     expect(resolveMacInstallIdentity(config)).toEqual({
       appId: "io.open-design.desktop.preview",
-      executableName: "Open Design Preview",
-      installerTitle: "Open Design Preview",
-      productName: "Open Design Preview",
-      publicAppBundleName: "Open Design Preview.app",
-      systemAppBundleName: "Open Design Preview.app",
+      executableName: channelName("preview"),
+      installerTitle: channelName("preview"),
+      productName: channelName("preview"),
+      publicAppBundleName: `${channelName("preview")}.app`,
+      systemAppBundleName: `${channelName("preview")}.app`,
     });
-    expect(resolveMacPaths(config).appPath).toMatch(/Open Design Preview\.app$/);
+    expect(resolveMacPaths(config).appPath).toMatch(new RegExp(`${escaped(channelName("preview"))}\\.app$`));
   });
 
   it("uses first-class prerelease app identity for prerelease release versions and namespaces", () => {
@@ -91,16 +104,16 @@ describe("resolveMacInstallIdentity", () => {
 
     expect(resolveMacInstallIdentity(prereleaseVersionConfig)).toEqual({
       appId: "io.open-design.desktop.prerelease",
-      executableName: "Open Design Prerelease",
-      installerTitle: "Open Design Prerelease",
-      productName: "Open Design Prerelease",
-      publicAppBundleName: "Open Design Prerelease.app",
-      systemAppBundleName: "Open Design Prerelease.app",
+      executableName: channelName("prerelease"),
+      installerTitle: channelName("prerelease"),
+      productName: channelName("prerelease"),
+      publicAppBundleName: `${channelName("prerelease")}.app`,
+      systemAppBundleName: `${channelName("prerelease")}.app`,
     });
-    expect(resolveMacPaths(prereleaseVersionConfig).appPath).toMatch(/Open Design Prerelease\.app$/);
+    expect(resolveMacPaths(prereleaseVersionConfig).appPath).toMatch(new RegExp(`${escaped(channelName("prerelease"))}\\.app$`));
     expect(resolveMacInstallIdentity(prereleaseNamespaceConfig)).toMatchObject({
-      productName: "Open Design Prerelease",
-      publicAppBundleName: "Open Design Prerelease.app",
+      productName: channelName("prerelease"),
+      publicAppBundleName: `${channelName("prerelease")}.app`,
     });
   });
 });

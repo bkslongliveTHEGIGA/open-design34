@@ -37,8 +37,11 @@ import { runWorkspaceBuild } from "./workspace-build.js";
 
 const execFileAsync = promisify(execFile);
 
-const PRODUCT_NAME = "Open Design";
-const APP_IMAGE_PRODUCT_NAME = "Open-Design";
+// Kept in step with PRODUCT_NAME in `win/constants.ts`, `mac/constants.ts` and
+// `packages/release/src/index.ts` so the same build produces the same product
+// name on every platform.
+export const PRODUCT_NAME = "Hermes Design Studio";
+const APP_IMAGE_PRODUCT_NAME = "Hermes-Design-Studio";
 const DESKTOP_LOG_ECHO_ENV = "OD_DESKTOP_LOG_ECHO";
 // The containerized build sets this to the standalone pnpm binary fetched by
 // buildDockerArgs; runProductionInstall reads it to avoid invoking `npm` inside
@@ -539,7 +542,7 @@ async function writeAssembledApp(
     main: "main.cjs",
     dependencies,
     description: "Local-first design product: detects your installed code-agent CLI, runs design skills + design systems, streams artifacts into a sandboxed preview.",
-    author: "Open Design Team",
+    author: "Hermes Design Studio Team",
     repository: {
       type: "git",
       url: "https://github.com/nexu-io/open-design.git"
@@ -633,8 +636,8 @@ async function writeLinuxBuilderConfig(config: ToolPackConfig, paths: LinuxPaths
       target,
       icon: linuxResources.icon,
       category: "Development",
-      synopsis: "Open Design",
-      maintainer: "Open Design Contributors",
+      synopsis: "Hermes Design Studio",
+      maintainer: "Hermes Design Studio Contributors",
     },
     // Keep the AppImage launch fallback explicit. Our top-level AppRun wrapper
     // clears ELECTRON_RUN_AS_NODE before these Chromium flags reach Electron,

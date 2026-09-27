@@ -100,11 +100,11 @@ describe("tools-pack mac launcher payload archives", () => {
       publicAppBundleName: identity.publicAppBundleName,
       version: "0.9.0-beta.2",
     })).toEqual({
-      appBundleName: "Open Design Beta.app",
+      appBundleName: identity.publicAppBundleName,
       channel: "beta",
       entry: {
-        cwd: "payload/Open Design Beta.app",
-        executable: "payload/Open Design Beta.app/Contents/MacOS/Open Design Beta",
+        cwd: `payload/${identity.publicAppBundleName}`,
+        executable: `payload/${identity.publicAppBundleName}/Contents/MacOS/${identity.executableName}`,
       },
       namespace: "release-beta",
       payloadRoot: "payload",
@@ -129,14 +129,16 @@ describe("tools-pack mac launcher payload archives", () => {
         entry: { executable: string };
         version: string;
       };
-      expect(manifest.appBundleName).toBe("Open Design Beta.app");
-      expect(manifest.entry.executable).toBe("payload/Open Design Beta.app/Contents/MacOS/Open Design Beta");
+      expect(manifest.appBundleName).toBe(resolveMacInstallIdentity(config).publicAppBundleName);
+      expect(manifest.entry.executable).toBe(
+        `payload/${resolveMacInstallIdentity(config).publicAppBundleName}/Contents/MacOS/${resolveMacInstallIdentity(config).executableName}`,
+      );
       expect(manifest.version).toBe("0.9.0-beta.2");
       await expectPathExists(join(extractRoot, manifest.entry.executable));
       await expectPathExists(join(
         extractRoot,
         "payload",
-        "Open Design Beta.app",
+        resolveMacInstallIdentity(config).publicAppBundleName,
         "Contents",
         "Resources",
         "open-design-config.json",
