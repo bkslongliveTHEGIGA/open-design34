@@ -14,15 +14,17 @@ import '../src/components/ProductionCampaignBadge.module.css';
 import '../src/components/OnboardingWelcome.module.css';
 
 export const metadata: Metadata = {
-  title: 'OpenDesign',
+  title: 'Hermes Design Studio',
+  description: 'Hermes Design Studio - Professional design environment with Hermes ecosystem integration',
   icons: {
     icon: '/app-icon.png',
     apple: '/app-icon.png',
   },
+  applicationName: 'Hermes Design Studio',
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f7f7f7',
+  themeColor: '#0000F2',
 };
 
 /**
@@ -37,7 +39,7 @@ export const viewport: Viewport = {
  * Keep the accent variable mix ratios in sync with `accentVars()` in
  * `src/state/appearance.ts`; this script cannot import application modules.
  */
-const themeInitScript = `(function(){document.documentElement.setAttribute('data-theme','light');try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'#353535';if(c.configMigrationVersion!==3&&(a==='#87ea5c'||a==='#c96442'))a='#353535';var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 82%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 12%, var(--bg-subtle))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 6%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 86%, var(--text-strong))');}catch(e){}})();`;
+const themeInitScript = `(function(){document.documentElement.setAttribute('data-theme','light');try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'#0000F2';var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 82%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 12%, var(--bg-subtle))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 6%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 86%, var(--text-strong))');s.setProperty('--hermes-primary','#0000F2');s.setProperty('--hermes-accent','#EDFF45');s.setProperty('--hermes-light','#F5F5F5');}catch(e){var s=document.documentElement.style;s.setProperty('--accent','#0000F2');s.setProperty('--hermes-primary','#0000F2');s.setProperty('--hermes-accent','#EDFF45');}})();`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
