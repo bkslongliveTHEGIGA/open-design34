@@ -15,7 +15,9 @@ import { join } from "node:path";
 import { app, ipcMain, type WebContents } from "electron";
 
 import {
+  HERMES_ACTION_NAMESPACE,
   HERMES_BRIDGE_POLL_INTERVAL_MS,
+  HERMES_FLOATING_CONTROLS,
   HERMES_DESIGN_STUDIO_PRODUCT_NAME,
   createHermesBridge,
   createHermesActionRegistry,
@@ -38,6 +40,8 @@ export const HERMES_IPC = Object.freeze({
   reconnect: "hermes:reconnect",
   /** Renderer → main: dispatch a `designStudio.*` action. */
   invokeAction: "hermes:invoke-action",
+  /** Renderer → main: the capability manifest (action, risk, availability). */
+  capabilities: "hermes:capabilities",
   /** Renderer → main: report the renderer's current task state. */
   setTaskState: "hermes:set-task-state",
   /** Main → renderer: the bridge snapshot changed. */
@@ -47,6 +51,11 @@ export const HERMES_IPC = Object.freeze({
   /** Main → renderer: a `hermes://design-studio/...` deep link arrived. */
   deepLink: "hermes:deep-link",
 } as const);
+
+/** Narrow an IPC-supplied `args` payload to the record the registry expects. */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 /** A real filesystem adapter for the pure discovery layer. */
 export function nodeHermesPathFs(): HermesPathFs {
@@ -115,6 +124,14 @@ export interface HermesDesktopRuntime {
   dispatchDeepLink(url: string | null): void;
   /** The current redacted snapshot. */
   snapshot(): unknown;
+  /**
+   * Dispatch a `designStudio.*` action through the same registry Hermes uses,
+   * so a renderer-initiated action and a Hermes-initiated one cannot diverge in
+   * permission handling.
+   */
+  dispatchAction(action: string, args: unknown, context?: unknown): Promise<unknown>;
+  /** The capability manifest: every action, its risk tier, and availability. */
+  capabilities(): unknown;
 }
 
 /**
@@ -165,6 +182,36 @@ export function createHermesDesktopRuntime(deps: HermesDesktopRuntimeDeps): Herm
     registry.register(name as never, handler as never);
   }
 
+  /**
+   * Single dispatch path for every action, whichever side asked for it.
+   *
+   * An action with no main-process handler is not an error: many of them
+   * (`focus`, `preview`, `compare`, `open`) are inherently renderer work. Those
+   * are forwarded over `actionRequested` so the UI can act, instead of dying as
+   * `unknown-action` in main where nothing can service them.
+   */
+  const dispatchAction = async (
+    action: string,
+    args: unknown,
+    context?: unknown,
+  ): Promise<unknown> => {
+    const result = await registry.dispatch({
+      action: action as never,
+      ...(isPlainRecord(args) ? { args } : {}),
+      context: (context ?? emptyContext()) as never,
+    });
+    const outcome = result as { ok?: boolean; code?: string };
+    if (outcome.ok === false && outcome.code === "unknown-action") {
+      deps.broadcast(HERMES_IPC.actionRequested, {
+        action,
+        args: isPlainRecord(args) ? args : null,
+        origin: "bridge",
+      });
+      return { ok: true, action, forwarded: "renderer" };
+    }
+    return result;
+  };
+
   const deepLinks = createHermesDeepLinkDispatcher((link: HermesDeepLink) => {
     deps.broadcast(HERMES_IPC.deepLink, link);
 
@@ -175,11 +222,7 @@ export function createHermesDesktopRuntime(deps: HermesDesktopRuntimeDeps): Herm
       `hermes-design-studio://action/${encodeURIComponent(link.target.action)}`,
     );
     if (!parsed || parsed.target.kind !== "action") return;
-    void registry.dispatch({
-      action: parsed.target.action as never,
-      args: link.target.args,
-      context: redactHermesContext(emptyContext()),
-    });
+    void dispatchAction(parsed.target.action, link.target.args);
   });
 
   const emptyContext = (): HermesSharedContext =>
@@ -223,6 +266,30 @@ export function createHermesDesktopRuntime(deps: HermesDesktopRuntimeDeps): Herm
 
     snapshot() {
       return bridge.snapshot();
+    },
+
+    dispatchAction(action, args, context) {
+      return dispatchAction(action, args, context);
+    },
+
+    capabilities() {
+      // The manifest tells the UI what is permitted; the control list tells it
+      // what to render and where. Shipping both means the renderer never has to
+      // carry its own copy of the control definitions, which would drift.
+      return {
+        actions: registry.manifest(),
+        controls: HERMES_FLOATING_CONTROLS.map((control) => ({
+          id: control.id,
+          label: control.label,
+          action: control.action,
+          slot: control.slot,
+          risk: control.risk,
+          hint: control.hint,
+          order: control.order,
+          when: control.when,
+          ...(control.args == null ? {} : { args: control.args }),
+        })),
+      };
     },
   };
 }
@@ -269,6 +336,35 @@ export function registerHermesDesktopIpc(
     );
     return { ok: typeof state === "string" };
   });
+
+  /**
+   * Renderer-initiated `designStudio.*` action.
+   *
+   * Goes through the same registry as a Hermes-initiated action, so the
+   * permission gate and the audit trail apply identically whichever side asked.
+   * A bare action name is accepted as well as the fully qualified
+   * `designStudio.x` wire form.
+   */
+  ipcMain.handle(HERMES_IPC.invokeAction, (_event, invocation: unknown) => {
+    if (typeof invocation !== "object" || invocation === null) {
+      return { ok: false, action: null, error: "invocation must be an object", code: "unknown-action" };
+    }
+    const { action, args, context } = invocation as {
+      action?: unknown;
+      args?: unknown;
+      context?: unknown;
+    };
+    if (typeof action !== "string" || action.length === 0) {
+      return { ok: false, action: null, error: "action must be a non-empty string", code: "unknown-action" };
+    }
+    const bare = action.startsWith(`${HERMES_ACTION_NAMESPACE}.`)
+      ? action.slice(HERMES_ACTION_NAMESPACE.length + 1)
+      : action;
+    return runtime.dispatchAction(bare, args ?? null, context);
+  });
+
+  /** What the UI may offer right now: every action with its risk and availability. */
+  ipcMain.handle(HERMES_IPC.capabilities, () => runtime.capabilities());
 
   // macOS delivers `open-url`; Windows/Linux deliver a second-instance argv.
   if (typeof app?.on === "function") {

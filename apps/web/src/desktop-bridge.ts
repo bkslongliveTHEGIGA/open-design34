@@ -41,6 +41,48 @@ export interface HermesBridgeSnapshotView {
   context: { hermesProjectId?: string | null; workspaceId?: string | null } | null;
 }
 
+/** A single entry of the capability manifest. */
+export interface HermesCapability {
+  name: string;
+  /** Fully qualified wire name, e.g. `designStudio.generate`. */
+  action: string;
+  risk: 'read' | 'write' | 'agent' | 'filesystem' | 'external';
+  available: boolean;
+}
+
+/** Result of invoking an action. */
+export type HermesActionResult =
+  | { ok: true; action: string; value?: unknown; forwarded?: 'renderer' }
+  | { ok: false; action: string | null; error: string; code: string };
+
+/** Main → renderer: an action whose effect lives in the UI. */
+export interface HermesActionRequest {
+  action: string;
+  args: Record<string, unknown> | null;
+  origin: string;
+}
+
+/** A floating control, exactly as `hermes-controls.ts` in main defines it. */
+export interface HermesFloatingControlView {
+  id: string;
+  label: string;
+  /** Bare action name, e.g. `generate`. */
+  action: string;
+  slot: 'composer-bar' | 'floating-card';
+  risk: 'read' | 'write' | 'agent' | 'filesystem' | 'external';
+  hint: string;
+  order: number;
+  /** Task states in which this control should be offered. */
+  when: string[];
+  args?: Record<string, unknown>;
+}
+
+/** What `capabilities()` returns: permissions plus the real control layout. */
+export interface HermesCapabilities {
+  actions: HermesCapability[];
+  controls: HermesFloatingControlView[];
+}
+
 export interface HermesBridgeApi {
   /** The redacted bridge snapshot, including the connection state. */
   getState(): Promise<HermesBridgeSnapshotView | null>;
@@ -48,9 +90,25 @@ export interface HermesBridgeApi {
   reconnect(): Promise<HermesBridgeSnapshotView | null>;
   /** Report this renderer's current task state to the bridge. */
   setTaskState(state: string): Promise<unknown>;
+  /**
+   * Invoke a `designStudio.*` action. Routed through the same registry Hermes
+   * uses, so the permission gate and audit trail apply either way.
+   */
+  invokeAction(action: string, args?: Record<string, unknown>): Promise<HermesActionResult>;
+  /** Permitted actions plus the control layout, from main's single source. */
+  capabilities(): Promise<HermesCapabilities>;
   onStateChanged(handler: (payload: unknown) => void): () => void;
-  onActionRequested(handler: (payload: unknown) => void): () => void;
+  onActionRequested(handler: (request: HermesActionRequest) => void): () => void;
   onDeepLink(handler: (url: string) => void): () => void;
+}
+
+/** Narrow an `onActionRequested` payload without trusting its shape. */
+export function isHermesActionRequest(value: unknown): value is HermesActionRequest {
+  return (
+    typeof value === 'object' &&
+    value != null &&
+    typeof (value as { action?: unknown }).action === 'string'
+  );
 }
 
 export interface OpenDesignDesktopApi {

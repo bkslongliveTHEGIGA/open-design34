@@ -205,6 +205,65 @@ ${variableLines}
   cursor: progress;
   opacity: 0.6;
 }
+
+/*
+ * Floating Design Studio controls
+ * (apps/web/src/components/HermesFloatingControls.tsx).
+ *
+ * These sit above the composer, so the surface is the accent-on-primary pair
+ * that the desktop suite asserts clears WCAG AA.
+ */
+.hermes-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.hermes-controls--composer-bar {
+  padding: 6px 0;
+}
+
+.hermes-controls--floating-card {
+  padding: 8px;
+  border: 1px solid var(--hermes-brand-neutral-light);
+  border-radius: 10px;
+  background-color: var(--hermes-brand-white);
+}
+
+.hermes-controls__button {
+  appearance: none;
+  border: 1px solid var(--hermes-brand-primary);
+  border-radius: 999px;
+  background-color: var(--hermes-brand-primary);
+  color: var(--hermes-brand-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 4px 12px;
+  /* Subtle, and disabled wholesale under the global reduced-motion rule. */
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.hermes-controls__button:hover:not(:disabled) {
+  background-color: var(--hermes-brand-primary-hover);
+  transform: translateY(-1px);
+}
+
+.hermes-controls__button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.hermes-controls__button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.hermes-controls__message {
+  font-size: 11px;
+}
 `;
 }
 

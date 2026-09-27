@@ -174,6 +174,7 @@ import {
   type ChatSendOutcome,
   type ChatSendMeta,
 } from './ChatComposer';
+import { HermesFloatingControls, type HermesTaskState } from './HermesFloatingControls';
 import type { PendingUpload } from '../runtime/chat/staged-attachment';
 import type { PlaceholderScenario } from './home-hero/placeholderScenarios';
 import { listDesignArtifactCandidates } from './design-files/designArtifacts';
@@ -4036,10 +4037,31 @@ export function ChatPane({
     };
   }, [composerPortalRect, composerPortalTarget, tab]);
 
+  /**
+   * Design Studio task state, derived from signals this pane already tracks
+   * rather than a constant: `planPillRunning` already folds the local
+   * `streaming` flag together with an active run message.
+   */
+  const hermesTaskState: HermesTaskState = planPillRunning ? 'generating' : 'idle';
+
+  // Keep the main-process bridge in step, so Hermes sees the same running state
+  // the UI is showing. Fire-and-forget: the bridge owns its snapshot and this is
+  // only a hint from the renderer.
+  const hermesBridge = typeof window === 'undefined' ? undefined : window.openDesignDesktop?.hermes;
+  useEffect(() => {
+    if (hermesBridge == null) return;
+    void hermesBridge.setTaskState(hermesTaskState).catch(() => undefined);
+  }, [hermesBridge, hermesTaskState]);
+
   const composerNode = (
     <>
       {/* 插件 / 设计百宝箱 live inside the composer's "+" menu (below 工作目录,
           hover to expand); they no longer sit as quick pills above the input. */}
+      {/* Hermes Design Studio controls, above the prompt bar. Renders nothing
+          unless the desktop bridge reports permitted actions for the current
+          task state, so a browser session or a standalone run simply has no
+          strip rather than a row of dead buttons. */}
+      <HermesFloatingControls taskState={hermesTaskState} />
     <ChatComposer
       ref={composerRef}
       quotes={quotes}

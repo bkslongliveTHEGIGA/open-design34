@@ -391,10 +391,13 @@ contextBridge.exposeInMainWorld(OPEN_DESIGN_HOST_GLOBAL, hostBridge);
 const HERMES_CHANNELS = Object.freeze({
   getState: 'hermes:get-state',
   reconnect: 'hermes:reconnect',
+  invokeAction: 'hermes:invoke-action',
+  capabilities: 'hermes:capabilities',
   setTaskState: 'hermes:set-task-state',
   stateChanged: 'hermes:state-changed',
   actionRequested: 'hermes:action-requested',
   deepLink: 'hermes:deep-link',
+  deepLinkReady: 'hermes:deep-link-ready',
 });
 
 /** Wrap a main→renderer channel into a subscribe/unsubscribe pair. */
@@ -430,6 +433,11 @@ function subscribeHermesEvent(channel: string, handler: (payload: unknown) => vo
  * re-mounts on navigation and a leaked `ipcRenderer.on` would fire into a dead
  * component tree.
  */
+// Main buffers deep links that arrive before a renderer exists (a cold start
+// straight from an OS `hermes-design-studio://` URL). Announcing readiness here
+// flushes that queue; without it those links are silently dropped.
+ipcRenderer.invoke(HERMES_CHANNELS.deepLinkReady).catch(() => undefined);
+
 contextBridge.exposeInMainWorld('openDesignDesktop', {
   exportDiagnostics: (): Promise<DesktopDiagnosticsExportResult> =>
     ipcRenderer.invoke(DESKTOP_DIAGNOSTICS_IPC_CHANNEL) as Promise<DesktopDiagnosticsExportResult>,
@@ -441,6 +449,14 @@ contextBridge.exposeInMainWorld('openDesignDesktop', {
     /** Report this renderer's current task state to the bridge. */
     setTaskState: (state: string): Promise<unknown> =>
       ipcRenderer.invoke(HERMES_CHANNELS.setTaskState, state),
+    /**
+     * Invoke a `designStudio.*` action. Routed through the same registry Hermes
+     * uses, so the permission gate and audit trail apply either way.
+     */
+    invokeAction: (action: string, args?: Record<string, unknown>): Promise<unknown> =>
+      ipcRenderer.invoke(HERMES_CHANNELS.invokeAction, { action, args: args ?? null }),
+    /** The capability manifest: every action, its risk tier, and availability. */
+    capabilities: (): Promise<unknown> => ipcRenderer.invoke(HERMES_CHANNELS.capabilities),
     onStateChanged: (handler: (payload: unknown) => void): (() => void) =>
       subscribeHermesEvent(HERMES_CHANNELS.stateChanged, handler),
     onActionRequested: (handler: (payload: unknown) => void): (() => void) =>
