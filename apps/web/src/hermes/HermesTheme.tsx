@@ -6,8 +6,8 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useHermes } from "./HermesProvider.js";
-import { HERMES_BRAND, HERMES_THEME_CSS_VARS } from "./types.js";
+import { useHermes } from "./HermesProvider";
+import { HERMES_BRAND, HERMES_THEME_CSS_VARS } from "./types";
 
 export interface HermesThemeContextValue {
   isHermesThemeActive: boolean;

@@ -95,10 +95,10 @@ import {
   type SettingsHighlight,
 } from './components/SettingsDialog';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
-import { HermesProvider } from './hermes/HermesProvider.js';
-import { HermesThemeProvider } from './hermes/HermesTheme.js';
-import { HermesStatusIndicator, HermesConnectionBanner } from './hermes/HermesStatusIndicator.js';
-import { HermesFloatingControls } from './hermes/HermesFloatingControls.js';
+import { HermesProvider } from './hermes/HermesProvider';
+import { HermesThemeProvider } from './hermes/HermesTheme';
+import { HermesStatusIndicator, HermesConnectionBanner } from './hermes/HermesStatusIndicator';
+import { HermesFloatingControls } from './hermes/HermesFloatingControls';
 import { TestCampaignModal } from './components/TestCampaignModal';
 import { ProductionCampaignModal } from './components/ProductionCampaignModal';
 import {

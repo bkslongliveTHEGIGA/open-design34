@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { useHermes } from "./HermesProvider.js";
+import { useHermes } from "./HermesProvider";
 
 export interface FloatingAction {
   id: string;

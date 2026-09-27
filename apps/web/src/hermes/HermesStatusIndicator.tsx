@@ -5,8 +5,8 @@
  */
 
 import React from "react";
-import { useHermes } from "./HermesProvider.js";
-import { HERMES_CONNECTION_STATES } from "./types.js";
+import { useHermes } from "./HermesProvider";
+import { HERMES_CONNECTION_STATES } from "./types";
 
 export function HermesStatusIndicator() {
   const { status, isConnected, isStandalone, connectionState, reconnect } = useHermes();

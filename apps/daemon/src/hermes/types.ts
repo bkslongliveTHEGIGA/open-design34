@@ -16,18 +16,18 @@ export type HermesConnectionState =
   (typeof HERMES_CONNECTION_STATES)[keyof typeof HERMES_CONNECTION_STATES];
 
 export interface HermesSharedContext {
-  hermesProjectId?: string;
-  workspaceId?: string;
-  conversationId?: string;
-  taskId?: string;
-  agentSessionId?: string;
-  modelId?: string;
-  themeId?: string;
-  memoryContextId?: string;
+  hermesProjectId?: string | undefined;
+  workspaceId?: string | undefined;
+  conversationId?: string | undefined;
+  taskId?: string | undefined;
+  agentSessionId?: string | undefined;
+  modelId?: string | undefined;
+  themeId?: string | undefined;
+  memoryContextId?: string | undefined;
   artifactIds?: string[];
-  permissionContextId?: string;
-  hermesHome?: string;
-  profile?: string;
+  permissionContextId?: string | undefined;
+  hermesHome?: string | undefined;
+  profile?: string | undefined;
   updatedAt: string;
 }
 
@@ -36,9 +36,9 @@ export interface HermesBridgeStatus {
   isConnected: boolean;
   isHermesInstalled: boolean;
   isHermesRunning: boolean;
-  context?: HermesSharedContext;
-  lastConnectedAt?: string;
-  lastError?: string;
+  context?: HermesSharedContext | undefined;
+  lastConnectedAt?: string | undefined;
+  lastError?: string | undefined;
 }
 
 export type DesignStudioActionType =

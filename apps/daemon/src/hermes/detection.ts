@@ -129,7 +129,11 @@ export async function detectHermes(): Promise<HermesDetectionResult> {
   const homeValid = hermesHome ? await checkHermesHomeValid(hermesHome) : false;
 
   if (!executablePath && !homeValid) {
-    return { state: HERMES_CONNECTION_STATES.NOT_INSTALLED, hermesHome: hermesHome || undefined, detectedAt: new Date().toISOString() };
+    return {
+      state: HERMES_CONNECTION_STATES.NOT_INSTALLED,
+      ...(hermesHome ? { hermesHome } : {}),
+      detectedAt: new Date().toISOString(),
+    };
   }
 
   for (const endpoint of HERMES_ENDPOINTS) {
@@ -137,9 +141,9 @@ export async function detectHermes(): Promise<HermesDetectionResult> {
     if (result.reachable) {
       return {
         state: HERMES_CONNECTION_STATES.RUNNING,
-        hermesHome: hermesHome || undefined,
-        executablePath: executablePath || undefined,
-        version: result.version,
+        ...(hermesHome ? { hermesHome } : {}),
+        ...(executablePath ? { executablePath } : {}),
+        ...(result.version ? { version: result.version } : {}),
         endpoint,
         detectedAt: new Date().toISOString(),
       };
@@ -148,8 +152,8 @@ export async function detectHermes(): Promise<HermesDetectionResult> {
 
   return {
     state: HERMES_CONNECTION_STATES.INSTALLED_NOT_RUNNING,
-    hermesHome: hermesHome || undefined,
-    executablePath: executablePath || undefined,
+    ...(hermesHome ? { hermesHome } : {}),
+    ...(executablePath ? { executablePath } : {}),
     detectedAt: new Date().toISOString(),
   };
 }

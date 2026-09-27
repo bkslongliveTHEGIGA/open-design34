@@ -17,11 +17,11 @@ export type HermesConnectionState =
 
 export interface HermesDetectionResult {
   state: HermesConnectionState;
-  hermesHome?: string;
-  executablePath?: string;
-  version?: string;
-  endpoint?: string;
-  error?: string;
+  hermesHome?: string | undefined;
+  executablePath?: string | undefined;
+  version?: string | undefined;
+  endpoint?: string | undefined;
+  error?: string | undefined;
   detectedAt: string;
 }
 
@@ -38,28 +38,28 @@ export interface HermesCapabilities {
 }
 
 export interface HermesSharedContext {
-  hermesProjectId?: string;
-  workspaceId?: string;
-  conversationId?: string;
-  taskId?: string;
-  agentSessionId?: string;
-  modelId?: string;
-  themeId?: string;
-  memoryContextId?: string;
+  hermesProjectId?: string | undefined;
+  workspaceId?: string | undefined;
+  conversationId?: string | undefined;
+  taskId?: string | undefined;
+  agentSessionId?: string | undefined;
+  modelId?: string | undefined;
+  themeId?: string | undefined;
+  memoryContextId?: string | undefined;
   artifactIds?: string[];
-  permissionContextId?: string;
+  permissionContextId?: string | undefined;
   // Additional fields for compatibility with real Hermes
-  hermesHome?: string;
-  profile?: string;
+  hermesHome?: string | undefined;
+  profile?: string | undefined;
   updatedAt: string;
 }
 
 export interface HermesModelInfo {
   id: string;
   label: string;
-  provider?: string;
+  provider?: string | undefined;
   contextLength?: number;
-  isDefault?: boolean;
+  isDefault?: boolean | undefined;
 }
 
 export interface HermesTheme {
@@ -90,8 +90,8 @@ export interface HermesTheme {
 export interface HermesProject {
   id: string;
   name: string;
-  path?: string;
-  workspaceId?: string;
+  path?: string | undefined;
+  workspaceId?: string | undefined;
   metadata?: Record<string, unknown>;
 }
 
@@ -102,7 +102,7 @@ export interface HermesArtifact {
   version: number;
   status: "draft" | "ready" | "approved" | "archived";
   metadata?: Record<string, unknown>;
-  previewUrl?: string;
+  previewUrl?: string | undefined;
   createdAt: string;
   updatedAt: string;
   source: "hermes" | "design-studio";
@@ -142,7 +142,7 @@ export interface DesignStudioAction<T = unknown> {
   type: DesignStudioActionType;
   id: string;
   payload?: T;
-  context?: HermesSharedContext;
+  context?: HermesSharedContext | undefined;
   timestamp: string;
 }
 
@@ -151,9 +151,9 @@ export interface DesignStudioActionResult<T = unknown> {
   type: DesignStudioActionType;
   success: boolean;
   data?: T;
-  error?: string;
+  error?: string | undefined;
   artifactIds?: string[];
-  previewUrl?: string;
+  previewUrl?: string | undefined;
   timestamp: string;
 }
 
@@ -176,11 +176,11 @@ export type DesignStudioEventType =
 export interface DesignStudioEvent<T = unknown> {
   type: DesignStudioEventType;
   id: string;
-  designId?: string;
-  artifactId?: string;
-  projectId?: string;
+  designId?: string | undefined;
+  artifactId?: string | undefined;
+  projectId?: string | undefined;
   payload?: T;
-  context?: HermesSharedContext;
+  context?: HermesSharedContext | undefined;
   timestamp: string;
 }
 
@@ -189,14 +189,14 @@ export interface HermesBridgeStatus {
   isConnected: boolean;
   isHermesInstalled: boolean;
   isHermesRunning: boolean;
-  context?: HermesSharedContext;
+  context?: HermesSharedContext | undefined;
   capabilities?: HermesCapabilities;
   model?: HermesModelInfo;
   theme?: HermesTheme;
   project?: HermesProject;
   permissions?: HermesPermissions;
-  lastConnectedAt?: string;
-  lastError?: string;
+  lastConnectedAt?: string | undefined;
+  lastError?: string | undefined;
   reconnectionAttempts?: number;
 }
 
@@ -210,7 +210,7 @@ export type HermesDeepLinkType =
 
 export interface HermesDeepLink {
   type: HermesDeepLinkType;
-  id?: string;
+  id?: string | undefined;
   path: string;
   originalUrl: string;
   params?: Record<string, string>;

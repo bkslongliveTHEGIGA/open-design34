@@ -231,7 +231,7 @@ export async function detectHermes(
   if (!executablePath && !homeValid) {
     return {
       state: HERMES_CONNECTION_STATES.NOT_INSTALLED,
-      hermesHome: hermesHome || undefined,
+      ...(hermesHome ? { hermesHome } : {}),
       detectedAt: new Date().toISOString(),
     };
   }
@@ -261,9 +261,9 @@ export async function detectHermes(
       if (result.reachable) {
         return {
           state: HERMES_CONNECTION_STATES.RUNNING,
-          hermesHome: hermesHome || undefined,
-          executablePath: executablePath || undefined,
-          version,
+          ...(hermesHome ? { hermesHome } : {}),
+          ...(executablePath ? { executablePath } : {}),
+          ...(version ? { version } : {}),
           endpoint,
           detectedAt: new Date().toISOString(),
         };
@@ -274,9 +274,9 @@ export async function detectHermes(
   // Step 4: Installed but not running
   return {
     state: HERMES_CONNECTION_STATES.INSTALLED_NOT_RUNNING,
-    hermesHome: hermesHome || undefined,
-    executablePath: executablePath || undefined,
-    version,
+    ...(hermesHome ? { hermesHome } : {}),
+    ...(executablePath ? { executablePath } : {}),
+    ...(version ? { version } : {}),
     detectedAt: new Date().toISOString(),
   };
 }

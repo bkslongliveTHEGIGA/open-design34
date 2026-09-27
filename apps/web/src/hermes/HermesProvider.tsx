@@ -5,8 +5,8 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import type { HermesBridgeStatus, HermesConnectionState, HermesSharedContext } from "./types.js";
-import { HERMES_CONNECTION_STATES } from "./types.js";
+import type { HermesBridgeStatus, HermesConnectionState, HermesSharedContext } from "./types";
+import { HERMES_CONNECTION_STATES } from "./types";
 
 export interface HermesContextValue {
   status: HermesBridgeStatus;
