@@ -223,6 +223,7 @@ async function runElectronBuilderRaw(
       multiLanguageInstaller: true,
       oneClick: false,
       perMachine: false,
+      runAfterFinish: true,
       shortcutName: PRODUCT_NAME,
       warningsAsErrors: false,
     },
