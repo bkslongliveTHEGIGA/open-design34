@@ -2,6 +2,8 @@
 // testable. The electron scheme registration lives in `invite-deeplink.ts`.
 
 export const INVITE_DEEPLINK_SCHEME = "opendesign";
+export const HERMES_DEEPLINK_SCHEME = "hermes";
+export const HERMES_DEEPLINK_HOST = "design-studio";
 const INVITE_DEEPLINK_HOST = "workspace";
 const INVITE_DEEPLINK_PATH = "/invite/continue";
 const WORKSPACE_OPEN_DEEPLINK_PATH = "/open";
@@ -155,9 +157,22 @@ export function createInviteDeeplinkDispatcher(
   };
 }
 
-/** Extract an `opendesign://` url from a process argv list, if present. */
+/** Extract an `opendesign://` or `hermes://` url from a process argv list, if present. */
 export function findDeeplinkArg(argv: readonly string[]): string | null {
-  return argv.find((arg) => arg.startsWith(`${INVITE_DEEPLINK_SCHEME}://`)) ?? null;
+  return argv.find((arg) => arg.startsWith(`${INVITE_DEEPLINK_SCHEME}://`) || arg.startsWith(`${HERMES_DEEPLINK_SCHEME}://`)) ?? null;
+}
+
+export function findHermesDeeplinkArg(argv: readonly string[]): string | null {
+  return argv.find((arg) => arg.startsWith(`${HERMES_DEEPLINK_SCHEME}://${HERMES_DEEPLINK_HOST}`)) ?? null;
+}
+
+export function isHermesDeeplink(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === `${HERMES_DEEPLINK_SCHEME}:` && parsed.host === HERMES_DEEPLINK_HOST;
+  } catch {
+    return false;
+  }
 }
 
 /**

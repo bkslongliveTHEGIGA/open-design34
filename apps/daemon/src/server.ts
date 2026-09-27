@@ -946,6 +946,7 @@ import { registerSocialShareRoutes } from './routes/social-share.js';
 import { registerOpenDesignPublicMetadataRoutes } from './routes/open-design-public-metadata.js';
 import { registerWhatsNewRoutes } from './routes/whats-new.js';
 import { registerMemoryRoutes } from './routes/memory.js';
+import { registerHermesRoutes } from './routes/hermes.js';
 import {
   createCollabPresenceCloudClient,
   registerCollabPresenceRoutes,
@@ -8287,6 +8288,11 @@ export async function startServer({
     getDaemonShuttingDown: () => daemonShuttingDown,
     sandboxRuntime: SANDBOX_RUNTIME,
     env: process.env,
+  });
+
+  // Hermes Design Studio integration routes
+  registerHermesRoutes(app, {
+    db,
   });
 
   const openDesignPublicMetadata = createOpenDesignPublicMetadataService();
