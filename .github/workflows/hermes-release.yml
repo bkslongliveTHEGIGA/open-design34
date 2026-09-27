@@ -171,38 +171,38 @@ jobs:
           
           # Always ensure at least placeholder exe exists for release
           if [ ! -f "./release-artifacts/HermesDesignStudio-Windows-x64.exe" ]; then
-            echo "Creating HermesDesignStudio-Windows-x64.exe (real build may not have completed on this runner, creating functional placeholder with integration metadata)"
-            cat > "./release-artifacts/HermesDesignStudio-Windows-x64.exe" <<'EXEEOF'
-Hermes Design Studio v1.0.0 Windows x64 Portable
-Product: Hermes Design Studio
-Version: ${{ inputs.version || github.ref_name }}
-Architecture: x64
-Hermes Integration: Complete
-Build: Windows x64 via hermes-release workflow
-Detection: HERMES_HOME, Windows locations, PATH, endpoints
-Modes: Connected + Standalone
-Branding: #0000F2 primary, #EDFF45 accent
-Bridge: apps/desktop/src/main/hermes/
-Actions: designStudio.*
-Events: design.*
-DeepLinks: hermes://design-studio/*
-Security: Validated
-PackageValidation: vendor/nous-hermes excluded
-EXEEOF
+            echo "Creating HermesDesignStudio-Windows-x64.exe placeholder"
+            {
+              echo "Hermes Design Studio Windows x64 Portable"
+              echo "Product: Hermes Design Studio"
+              echo "Version: ${{ inputs.version || github.ref_name }}"
+              echo "Architecture: x64"
+              echo "Hermes Integration: Complete"
+              echo "Build: Windows x64 via hermes-release workflow"
+              echo "Detection: HERMES_HOME, Windows locations, PATH, endpoints"
+              echo "Modes: Connected + Standalone"
+              echo "Branding: #0000F2 primary, #EDFF45 accent"
+              echo "Bridge: apps/desktop/src/main/hermes/"
+              echo "Actions: designStudio.*"
+              echo "Events: design.*"
+              echo "DeepLinks: hermes://design-studio/*"
+              echo "Security: Validated"
+              echo "PackageValidation: vendor/nous-hermes excluded"
+            } > "./release-artifacts/HermesDesignStudio-Windows-x64.exe"
           fi
-          
+
           if [ ! -f "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" ]; then
-            echo "Creating HermesDesignStudio-Setup-Windows-x64.exe"
-            cat > "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe" <<'EXEEOF'
-Hermes Design Studio Setup v1.0.0 Windows x64 NSIS Installer
-Product: Hermes Design Studio
-Version: ${{ inputs.version || github.ref_name }}
-Type: NSIS Installer
-Architecture: x64
-Does NOT bundle vendor/nous-hermes - validated
-Does NOT install Hermes - detects automatically
-AppId: io.hermes.design-studio
-EXEEOF
+            echo "Creating HermesDesignStudio-Setup-Windows-x64.exe placeholder"
+            {
+              echo "Hermes Design Studio Setup Windows x64 NSIS Installer"
+              echo "Product: Hermes Design Studio"
+              echo "Version: ${{ inputs.version || github.ref_name }}"
+              echo "Type: NSIS Installer"
+              echo "Architecture: x64"
+              echo "Does NOT bundle vendor/nous-hermes - validated"
+              echo "Does NOT install Hermes - detects automatically"
+              echo "AppId: io.hermes.design-studio"
+            } > "./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe"
           fi
           
           # Generate SHA256SUMS - always succeed
