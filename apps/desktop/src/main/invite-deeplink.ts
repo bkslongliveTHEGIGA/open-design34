@@ -1,6 +1,9 @@
 import { app } from "electron";
 import {
   INVITE_DEEPLINK_SCHEME,
+  HERMES_DEEPLINK_SCHEME,
+  HERMES_DEEPLINK_HOST,
+  isHermesDeeplink,
   createInviteDeeplinkDispatcher,
   continueInviteFromUrl,
   findDeeplinkArg,
@@ -79,8 +82,11 @@ export function registerInviteDeeplink(deps: InviteDeeplinkDeps): void {
   if (registration.register) {
     if (registration.clientPath) {
       app.setAsDefaultProtocolClient(INVITE_DEEPLINK_SCHEME, registration.clientPath);
+      // Also register hermes://design-studio scheme for Hermes integration
+      app.setAsDefaultProtocolClient(HERMES_DEEPLINK_SCHEME, registration.clientPath);
     } else {
       app.setAsDefaultProtocolClient(INVITE_DEEPLINK_SCHEME);
+      app.setAsDefaultProtocolClient(HERMES_DEEPLINK_SCHEME);
     }
   }
   deeplinkDispatcher.setDeps(deps);
