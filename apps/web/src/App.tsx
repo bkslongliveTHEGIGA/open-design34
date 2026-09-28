@@ -95,6 +95,10 @@ import {
   type SettingsHighlight,
 } from './components/SettingsDialog';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
+import { HermesProvider } from './hermes/HermesProvider';
+import { HermesThemeProvider } from './hermes/HermesTheme';
+import { HermesStatusIndicator, HermesConnectionBanner } from './hermes/HermesStatusIndicator';
+import { HermesFloatingControls } from './hermes/HermesFloatingControls';
 import { TestCampaignModal } from './components/TestCampaignModal';
 import { ProductionCampaignModal } from './components/ProductionCampaignModal';
 import {
@@ -919,19 +923,23 @@ export async function hydrateReadyTeamProject(
 }
 
 export function App() {
-  // `reducedMotion="user"` makes every motion/react component honor the OS
-  // `prefers-reduced-motion` setting: transform/layout animations are zeroed
-  // out while opacity-only changes are kept. The CSS `@media (prefers-reduced-
-  // motion: reduce)` block covers the CSS-keyframe surfaces, but the dialogs,
-  // toasts and popovers that moved to motion/react need this gate too — without
-  // it they keep springing/sliding for users who asked us not to animate.
   return (
     <MotionConfig reducedMotion="user">
       <IframeKeepAliveProvider>
         <WorkspaceMemberDirectoryPreloader />
-        <AppInner />
+        <HermesWrapper>
+          <AppInner />
+        </HermesWrapper>
       </IframeKeepAliveProvider>
     </MotionConfig>
+  );
+}
+
+function HermesWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <HermesProvider>
+      <HermesThemeProvider>{children}</HermesThemeProvider>
+    </HermesProvider>
   );
 }
 
@@ -5767,6 +5775,7 @@ function AppInner() {
           && projectRouteWorkspaceContext.failure === 'unavailable' ? (
           <ProjectWorkspaceRecoveryTip />
         ) : null}
+        <HermesConnectionBanner />
         <div className="workspace-shell__body">
           {appMain}
         </div>
@@ -5796,6 +5805,7 @@ function AppInner() {
         </>
       )}
       <TooltipLayer />
+      <HermesFloatingControls />
       <UpdateDialog />
       {/* Mounted at shell level, outside the route views, so a survey armed by
           an export inside a project stays on screen when the user navigates
