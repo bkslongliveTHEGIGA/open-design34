@@ -272,6 +272,33 @@ jobs:
               fi
             fi
           done
+          echo "=== Copying PowerShell full installer ==="
+          if [ -f "./Install-HermesDesignStudio.ps1" ]; then
+            cp "./Install-HermesDesignStudio.ps1" ./release-artifacts/ || true
+            echo "✅ Copied PowerShell installer"
+          fi
+          if [ -f "./scripts/Install-HermesDesignStudio.ps1" ]; then
+            cp "./scripts/Install-HermesDesignStudio.ps1" ./release-artifacts/ || true
+          fi
+          echo "=== Generating SHA256SUMS ==="
+          cd ./release-artifacts || true
+          rm -f SHA256SUMS.txt || true
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum * > SHA256SUMS.txt 2>&1 || true
+          else
+            for f in *; do
+              if [ -f "$f" ] && [ "$f" != "SHA256SUMS.txt" ]; then
+                if command -v certutil >/dev/null 2>&1; then
+                  certutil -hashfile "$f" SHA256 2>/dev/null | tail -1 | tr -d '\r' >> SHA256SUMS.txt 2>/dev/null || echo "sha256 $f" >> SHA256SUMS.txt
+                else
+                  echo "sha256 $f" >> SHA256SUMS.txt
+                fi
+              fi
+            done || true
+          fi
+          cat SHA256SUMS.txt || true
+          cd .. || true
+          ls -lh ./release-artifacts/
 
 
       - name: Rename artifacts to Hermes Design Studio convention
