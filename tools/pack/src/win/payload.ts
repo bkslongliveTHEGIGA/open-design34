@@ -19,6 +19,7 @@ import {
 } from "../launcher/layout.js";
 import { readPackagedVersion } from "./manifest.js";
 import { WIN_PAYLOAD_SEVEN_Z_CREATE_ARGS, resolveWinNsisOverlayRequiredPaths } from "./custom-installer.js";
+import { PRODUCT_NAME } from "./constants.js";
 import type { WinBuiltAppManifest, WinPackTiming, WinPaths } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -29,7 +30,7 @@ export type WinLauncherPayloadManifest = {
   channel: string;
   entry: {
     cwd: "payload";
-    executable: "payload/Open Design.exe";
+    executable: string;
   };
   namespace: string;
   payloadRoot: "payload";
@@ -47,7 +48,7 @@ export function buildWinLauncherPayloadManifest(input: {
     channel: input.channel,
     entry: {
       cwd: "payload",
-      executable: "payload/Open Design.exe",
+      executable: `payload/${PRODUCT_NAME}.exe`,
     },
     namespace: input.namespace,
     payloadRoot: "payload",
@@ -124,7 +125,7 @@ export async function buildWinLauncherPayloadArchive(
     await mkdir(join(overlayRoot, "payload", "resources"), { recursive: true });
     await writeFile(join(overlayRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     if (input.includeExecutable) {
-      await cp(join(builtApp.unpackedRoot, "Open Design.exe"), join(overlayRoot, "payload", "Open Design.exe"));
+      await cp(join(builtApp.unpackedRoot, `${PRODUCT_NAME}.exe`), join(overlayRoot, "payload", `${PRODUCT_NAME}.exe`));
     }
     await writeFile(
       join(overlayRoot, "payload", "resources", "open-design-config.json"),
@@ -328,9 +329,9 @@ export async function validateWinLauncherPayloadArchive(input: {
     requirePayloadManifestValue(manifest.platform, "platform", "win32");
     requirePayloadManifestValue(manifest.payloadRoot, "payloadRoot", "payload");
     requirePayloadManifestValue(manifest.entry?.cwd, "entry.cwd", "payload");
-    requirePayloadManifestValue(manifest.entry?.executable, "entry.executable", "payload/Open Design.exe");
+    requirePayloadManifestValue(manifest.entry?.executable, "entry.executable", `payload/${PRODUCT_NAME}.exe`);
 
-    await stat(join(extractRoot, archiveRelativePath("payload/Open Design.exe")));
+    await stat(join(extractRoot, archiveRelativePath(`payload/${PRODUCT_NAME}.exe`)));
     await stat(join(extractRoot, archiveRelativePath("payload/resources/open-design-config.json")));
     return { manifest, payloadPath, valid: true };
   } finally {
