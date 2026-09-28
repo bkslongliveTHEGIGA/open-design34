@@ -228,6 +228,15 @@ jobs:
           set +e
           echo "Generating SHA256 checksums..."
           mkdir -p ./release-artifacts || true
+          echo "=== Copying build logs to release-artifacts for debugging ==="
+          cp build-dir.log ./release-artifacts/ 2>/dev/null || echo "No build-dir.log"
+          cp build-nsis.log ./release-artifacts/ 2>/dev/null || echo "No build-nsis.log"
+          cp build.log ./release-artifacts/ 2>/dev/null || echo "No build.log"
+          cp $RUNNER_TEMP/windows-tools-pack-build.json ./release-artifacts/ 2>/dev/null || echo "No windows-tools-pack-build.json"
+          cat build-dir.log 2>/dev/null | tail -100 || true
+          cat $RUNNER_TEMP/windows-tools-pack-build.json 2>/dev/null | tail -50 || true
+          ls -lh $RUNNER_TEMP/tools-pack/out/win/namespaces/*/builder/ 2>/dev/null || true
+
           echo "Searching for real Electron build artifacts..."
           echo "=== Searching .tmp/tools-pack ==="
           find .tmp -name "*.exe" -type f 2>/dev/null | head -30 || true
