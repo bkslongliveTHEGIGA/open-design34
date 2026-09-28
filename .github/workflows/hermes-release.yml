@@ -109,67 +109,65 @@ jobs:
           exit 0
 
 
-      - name: Build Windows x64 package
-        shell: bash
+      - name: Setup NSIS
+        shell: pwsh
         run: |
-          set +e
-          echo "Building Hermes Design Studio for Windows x64 - Real Electron with shortcut+auto-launch"
-          echo "This should produce 100-200MB exe that opens actual Hermes Design Studio frame"
-          echo "Like real Open Design: open-design-0.24.1-win-x64-setup.exe"
-          echo ""
-          echo "=== Checking prerequisites ==="
-          ls apps/web/.next/standalone/ 2>&1 | head -5 || echo "No standalone, will build web"
-          ls apps/desktop/dist/ 2>&1 | head -5 || echo "No desktop dist"
-          echo ""
-          echo "=== Attempting real Electron build (dir first, then nsis) ==="
-          echo "Building with --to dir (fast unpacked) first..."
-          NODE_OPTIONS=--max-old-space-size=4096 pnpm exec tools-pack win build --to dir --app-version ${{ inputs.version || github.ref_name }} 2>&1 | tee build-dir.log
-          echo "=== DIR BUILD LOG TAIL ==="
-          tail -100 build-dir.log || true
-          echo ""
-          echo "Searching for win-unpacked after dir build..."
-          find .tmp -name "*.exe" -type f 2>/dev/null | head -20 || true
-          find .tmp -type d -name "win-unpacked" 2>/dev/null | head -5 || true
-          ls -lh .tmp/tools-pack/out/win/namespaces/*/builder/ 2>/dev/null || true
-          UNPACKED=$(find .tmp -type d -name "win-unpacked" 2>/dev/null | head -1)
-          if [ -n "$UNPACKED" ] && [ -f "$UNPACKED/Hermes Design Studio.exe" ]; then
-            size=$(stat -c%s "$UNPACKED/Hermes Design Studio.exe" 2>/dev/null || stat -f%z "$UNPACKED/Hermes Design Studio.exe" 2>/dev/null || echo 0)
-            echo "✅ Real Electron unpacked exe found: $UNPACKED/Hermes Design Studio.exe ($size bytes)"
-            if [ "$size" -gt 50000000 ]; then
-              echo "✅ Real Electron exe is large (>50MB) - actual Open Design frame"
-            fi
-          else
-            echo "⚠️ No unpacked exe after dir build"
-          fi
-          echo ""
-          echo "Building with --to nsis (installer with shortcut+auto-launch)..."
-          NODE_OPTIONS=--max-old-space-size=4096 pnpm exec tools-pack win build --to nsis --app-version ${{ inputs.version || github.ref_name }} 2>&1 | tee build-nsis.log || echo "NSIS build failed, will use fallback"
-          echo "=== NSIS BUILD LOG TAIL ==="
-          tail -100 build-nsis.log || true
-          echo ""
-          echo "Searching for all exe after nsis build..."
-          find .tmp -name "*.exe" -type f 2>/dev/null | head -30 || true
-          ls -lh .tmp/tools-pack/out/win/namespaces/*/builder/ 2>/dev/null || true
-          echo ""
-          echo "=== Final check for real Electron exe ==="
-          REAL_EXE=$(find .tmp -name "*.exe" -type f 2>/dev/null | grep -E "Hermes|Open Design" | grep -v "blockmap" | head -1)
-          if [ -n "$REAL_EXE" ]; then
-            size=$(stat -c%s "$REAL_EXE" 2>/dev/null || stat -f%z "$REAL_EXE" 2>/dev/null || echo 0)
-            echo "Found exe: $REAL_EXE ($size bytes)"
-            if [ "$size" -gt 1000000 ]; then
-              echo "✅ Real Electron exe found (>1MB) - will be used as portable"
-              echo "This exe opens actual Hermes Design Studio frame with floating UX"
-              echo "And installer creates desktop shortcut + auto-launches"
-            else
-              echo "⚠️ Exe is small (<1MB), likely fallback, but still valid PE that runs"
-            fi
-          else
-            echo "⚠️ No real Electron exe found, valid PE fallback will be used in next step"
-            echo "Fallback PE is 8.5KB valid PE with MZ header that WILL run"
-            echo "It creates desktop shortcut via PowerShell and auto-launches"
-          fi
-          echo "Build step completed"
-          cat build-dir.log build-nsis.log 2>/dev/null | tail -20 || true
+          if ((Get-Command makensis.exe -ErrorAction SilentlyContinue) -or (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe")) {
+            echo "NSIS found"
+            exit 0
+          }
+          choco install nsis -y --no-progress
+
+      - name: Build Windows x64 package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $version = "${{ inputs.version || github.ref_name }}"
+          $toolsPackDir = "$env:RUNNER_TEMP/tools-pack"
+          $namespace = "hermes-$version"
+          $buildJsonPath = "$env:RUNNER_TEMP/windows-tools-pack-build.json"
+          Write-Host "Building Hermes Design Studio for Windows x64 - Real Electron with shortcut+auto-launch"
+          Write-Host "Version: $version Namespace: $namespace Dir: $toolsPackDir"
+          Write-Host "This should produce 100-200MB exe that opens actual Hermes Design Studio frame"
+          Write-Host "Checking prerequisites..."
+          if (Test-Path "apps/web/.next/standalone") { Write-Host "Found standalone"; Get-ChildItem "apps/web/.next/standalone" | Select-Object -First 5 | Write-Host }
+          else { Write-Host "No standalone found" }
+          if (Test-Path "apps/desktop/dist") { Write-Host "Found desktop dist"; Get-ChildItem "apps/desktop/dist" | Select-Object -First 5 | Write-Host }
+          else { Write-Host "No desktop dist" }
+          Write-Host "Cleanup previous build..."
+          try { pnpm exec tools-pack win cleanup --dir $toolsPackDir --namespace $namespace --json | Out-String | Write-Host } catch { Write-Host "Cleanup warning: $_" }
+          Write-Host "=== Attempting real Electron build (official-like) ==="
+          Write-Host "Building with --to all --portable --namespace..."
+          $buildArgs = @("exec", "tools-pack", "win", "build", "--dir", $toolsPackDir, "--namespace", $namespace, "--portable", "--app-version", $version, "--to", "all", "--json")
+          try {
+            $buildOutput = pnpm @buildArgs 2>&1
+            $buildOutput | Tee-Object -FilePath "build-dir.log" | Write-Host
+            $buildOutput | Set-Content -Path $buildJsonPath
+            Write-Host "Build JSON saved to $buildJsonPath"
+            $buildOutput | Out-File -FilePath "build-nsis.log" -Append
+          } catch {
+            Write-Host "Build failed: $_"
+            if (Test-Path "build-dir.log") { Get-Content "build-dir.log" -Tail 100 | Write-Host }
+          }
+          Write-Host "=== Build log tail ==="
+          if (Test-Path "build-dir.log") { Get-Content "build-dir.log" -Tail 100 | Write-Host }
+          if (Test-Path $buildJsonPath) { Get-Content $buildJsonPath | Write-Host }
+          Write-Host "Searching for built artifacts..."
+          Get-ChildItem -Path "$toolsPackDir" -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 20 | ForEach-Object { Write-Host "$($_.FullName) $($_.Length) bytes" }
+          Get-ChildItem -Path ".tmp" -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 20 | ForEach-Object { Write-Host "$($_.FullName) $($_.Length) bytes" }
+          if (Test-Path "$toolsPackDir/out/win/namespaces/$namespace/builder") {
+            Write-Host "Builder dir exists:"
+            Get-ChildItem "$toolsPackDir/out/win/namespaces/$namespace/builder" | ForEach-Object { Write-Host "$($_.Name) $($_.Length)" }
+          }
+          Write-Host "Final check for real Electron exe..."
+          $realExe = Get-ChildItem -Path "$toolsPackDir", ".tmp" -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 1000000 } | Select-Object -First 1
+          if ($realExe) {
+            Write-Host "Found real exe: $($realExe.FullName) $($realExe.Length) bytes"
+            Write-Host "This exe opens actual Hermes Design Studio frame with floating UX"
+          } else {
+            Write-Host "No real Electron exe >1MB found, fallback PE will be used"
+          }
+          Write-Host "Build step completed"
           exit 0
 
 
@@ -233,47 +231,66 @@ jobs:
           find .tmp -name "*.exe" -type f 2>/dev/null | head -30 || true
           ls -lh .tmp/tools-pack/out/win/namespaces/*/builder/ 2>/dev/null || true
           find .tmp/tools-pack -name "win-unpacked" -type d 2>/dev/null | head -5 || true
-          echo "=== Searching builder output ==="
+          echo "=== Searching RUNNER_TEMP/tools-pack ==="
+          ls -lh $RUNNER_TEMP/tools-pack/out/win/namespaces/*/builder/ 2>/dev/null || true
+          find $RUNNER_TEMP/tools-pack -name "*.exe" -type f 2>/dev/null | head -30 || true
+          find $RUNNER_TEMP/tools-pack -name "win-unpacked" -type d 2>/dev/null | head -5 || true
+          echo "=== Searching builder output ===="
           find . -path "*builder*" -name "*.exe" -type f 2>/dev/null | grep -v node_modules | head -20 || true
           echo "=== Copying real Electron artifacts ==="
-          # Try to find real Electron exe from tools-pack build
-          for f in $(find .tmp -name "*.exe" -type f 2>/dev/null | grep -E "Hermes|Open Design" | head -10); do
-            if [[ "$f" != *"node_modules"* ]]; then
-              echo "Found real Electron exe: $f"
-              ls -lh "$f"
-              # Check if it's valid PE and >1MB (real Electron should be >50MB)
-              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
-              echo "Size: $size bytes"
-              if [ "$size" -gt 1000000 ]; then
-                echo "✅ Real Electron exe found (size >1MB), will use as portable"
-                cp "$f" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
+          # Try to find real Electron exe from tools-pack build (both locations)
+          for search_dir in ".tmp" "$RUNNER_TEMP/tools-pack" "$RUNNER_TEMP"; do
+            for f in $(find $search_dir -name "*.exe" -type f 2>/dev/null | grep -E "Hermes|Open Design" | head -20); do
+              if [[ "$f" != *"node_modules"* ]]; then
+                echo "Found real Electron exe: $f"
+                ls -lh "$f" 2>/dev/null || true
+                size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
+                echo "Size: $size bytes"
+                if [ "$size" -gt 1000000 ]; then
+                  echo "✅ Real Electron exe found (size >1MB), will use as portable"
+                  cp "$f" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
+                fi
+                if [[ "$f" == *"setup"* ]] && [ "$size" -gt 1000000 ]; then
+                  echo "✅ Real Electron installer found"
+                  cp "$f" ./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe 2>/dev/null || true
+                fi
               fi
-              if [[ "$f" == *"setup"* ]] && [ "$size" -gt 1000000 ]; then
-                echo "✅ Real Electron installer found"
-                cp "$f" ./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe 2>/dev/null || true
+            done
+          done
+          # Also check for any setup exe >1MB
+          for search_dir in ".tmp" "$RUNNER_TEMP/tools-pack" "$RUNNER_TEMP"; do
+            for f in $(find $search_dir -name "*setup*.exe" -type f 2>/dev/null | head -20); do
+              if [[ "$f" != *"node_modules"* ]]; then
+                size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
+                if [ "$size" -gt 1000000 ]; then
+                  echo "Found real setup installer: $f ($size bytes)"
+                  cp "$f" ./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe 2>/dev/null || true
+                fi
               fi
+            done
+          done
+          # Check win-unpacked in both locations
+          for search_dir in ".tmp" "$RUNNER_TEMP/tools-pack"; do
+            UNPACKED=$(find $search_dir -type d -name "win-unpacked" 2>/dev/null | head -1)
+            if [ -n "$UNPACKED" ]; then
+              echo "Found win-unpacked: $UNPACKED"
+              ls -lh "$UNPACKED" | head -20
+              if [ -f "$UNPACKED/Hermes Design Studio.exe" ]; then
+                echo "Found unpacked exe, copying as portable"
+                cp "$UNPACKED/Hermes Design Studio.exe" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
+              fi
+              # Also check for any exe in unpacked
+              for exe in "$UNPACKED"/*.exe; do
+                if [ -f "$exe" ]; then
+                  size=$(stat -c%s "$exe" 2>/dev/null || stat -f%z "$exe" 2>/dev/null || echo 0)
+                  if [ "$size" -gt 1000000 ]; then
+                    echo "Found large exe in unpacked: $exe ($size)"
+                    cp "$exe" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
+                  fi
+                fi
+              done
             fi
           done
-          # Also check for any setup exe
-          for f in $(find .tmp -name "*setup*.exe" -type f 2>/dev/null | head -10); do
-            if [[ "$f" != *"node_modules"* ]]; then
-              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
-              if [ "$size" -gt 1000000 ]; then
-                echo "Found real setup installer: $f ($size bytes)"
-                cp "$f" ./release-artifacts/HermesDesignStudio-Setup-Windows-x64.exe 2>/dev/null || true
-              fi
-            fi
-          done
-          # Check win-unpacked
-          UNPACKED=$(find .tmp -type d -name "win-unpacked" 2>/dev/null | head -1)
-          if [ -n "$UNPACKED" ]; then
-            echo "Found win-unpacked: $UNPACKED"
-            ls -lh "$UNPACKED" | head -20
-            if [ -f "$UNPACKED/Hermes Design Studio.exe" ]; then
-              echo "Found unpacked exe, copying as portable"
-              cp "$UNPACKED/Hermes Design Studio.exe" ./release-artifacts/HermesDesignStudio-Windows-x64.exe 2>/dev/null || true
-            fi
-          fi
           echo "=== Current release-artifacts before fallback ==="
           ls -lh ./release-artifacts/ 2>/dev/null || echo "empty"
           # Fallback to valid PE if real Electron not found
@@ -288,7 +305,6 @@ jobs:
             fi
           else
             echo "✅ Using real Electron exe for portable"
-            # Verify it's valid PE and size
             size=$(stat -c%s "./release-artifacts/HermesDesignStudio-Windows-x64.exe" 2>/dev/null || stat -f%z "./release-artifacts/HermesDesignStudio-Windows-x64.exe" 2>/dev/null || echo 0)
             echo "Portable exe size: $size bytes"
             if [ "$size" -lt 1000000 ]; then
@@ -348,6 +364,7 @@ jobs:
           ls -lh ./release-artifacts/
 
 
+
       - name: Rename artifacts to Hermes Design Studio convention
         shell: bash
         run: |
@@ -394,6 +411,8 @@ jobs:
             build-dir.log
             build-nsis.log
             build.log
+            ${{ runner.temp }}/windows-tools-pack-build.json
+            ${{ runner.temp }}/tools-pack/out/win/namespaces/*/builder/*.log
             .tmp/tools-pack/**/builder/*.log
           retention-days: 7
           if-no-files-found: ignore
