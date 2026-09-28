@@ -59,7 +59,12 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          pnpm install --no-frozen-lockfile --ignore-scripts || pnpm install --no-frozen-lockfile --ignore-scripts --no-optional || true
+          echo "Installing dependencies with native rebuild attempt..."
+          # First try full install with scripts (needed for better-sqlite3)
+          pnpm install --no-frozen-lockfile || pnpm install --no-frozen-lockfile --ignore-scripts || true
+          echo "Attempting native rebuild for better-sqlite3..."
+          pnpm rebuild better-sqlite3 || pnpm --filter better-sqlite3 rebuild || echo "better-sqlite3 rebuild attempted"
+          pnpm rebuild || echo "rebuild attempted"
           # Try to build critical packages manually
           pnpm --filter @open-design/sidecar-proto build || true
           pnpm --filter @open-design/platform build || true
@@ -68,6 +73,9 @@ jobs:
           pnpm --filter @open-design/host build || true
           pnpm --filter @open-design/hermes-bridge build || true
           pnpm --filter @open-design/desktop build || true
+          echo "Checking better-sqlite3..."
+          find node_modules -name "better-sqlite3" -type d | head -5 || true
+          ls node_modules/better-sqlite3/build/Release/ 2>&1 | head -10 || echo "No native build yet"
 
       - name: Typecheck
         shell: bash
@@ -376,6 +384,19 @@ jobs:
           ls -lh || true
           cd .. || true
           exit 0
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build-dir.log
+            build-nsis.log
+            build.log
+            .tmp/tools-pack/**/builder/*.log
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
