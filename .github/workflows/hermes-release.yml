@@ -128,7 +128,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Continue"
-          $version = "${{ inputs.version || github.ref_name }}"
+          $rawVersion = "${{ inputs.version || github.ref_name }}"
+          $version = $rawVersion.TrimStart('v')
           $toolsPackDir = "$env:RUNNER_TEMP/tools-pack"
           $namespace = "hermes-$version"
           $buildJsonPath = "$env:RUNNER_TEMP/windows-tools-pack-build.json"

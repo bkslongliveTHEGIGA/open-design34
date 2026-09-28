@@ -162,6 +162,10 @@ def generate_pe(output_path, caption, text, version="v1.0.8", is_installer=False
     def va(rva):
         return IMAGEBASE + rva
 
+    # Additional RVA for "open" operation string
+    rva_open = SECTION_RVA + 0x300
+    open_str = b'open\x00'
+
     # Build code that:
     # 1. Shows initial MessageBox (installing)
     # 2. Creates desktop shortcut via ShellExecuteA powershell
@@ -176,24 +180,24 @@ def generate_pe(output_path, caption, text, version="v1.0.8", is_installer=False
     code += b'\x6A\x00'  # hWnd=0
     code += b'\xFF\x15' + struct.pack('<I', va(rva_user_iat))  # call MessageBoxA
     
-    # Create desktop shortcut via PowerShell (ShellExecuteA)
+    # Create desktop shortcut via ShellExecuteA
     # ShellExecuteA(0, "open", "powershell.exe", desktop_cmd, 0, SW_HIDE=0)
-    code += b'\x6A\x00'  # nShowCmd = SW_HIDE
+    code += b'\x6A\x00'  # nShowCmd = SW_HIDE (0)
     code += b'\x6A\x00'  # lpDirectory = 0
     code += b'\x68' + struct.pack('<I', va(rva_desktop_cmd))  # lpParameters
     code += b'\x68' + struct.pack('<I', va(rva_powershell))  # lpFile
-    code += b'\x68' + struct.pack('<I', va(rva_caption))  # Actually "open" - we need string for "open"
-    # For simplicity, we'll use 0 for lpOperation (default open)
-    # Let's adjust: ShellExecuteA takes 6 args, we need to push in reverse order
-    # Actually we already started pushing, need to redo properly
-    
-    # Let's build proper ShellExecuteA call:
-    # ShellExecuteA(HWND, LPCSTR lpOperation, LPCSTR lpFile, LPCSTR lpParameters, LPCSTR lpDirectory, INT nShowCmd)
-    # Push reverse: nShowCmd, lpDirectory, lpParameters, lpFile, lpOperation, HWND
-    # We'll do simple version that just creates shortcut via powershell
-    
-    # For now, let's just do MessageBox for success that says shortcuts created and auto-launch
-    # This mimics real installer behavior without complex PowerShell in minimal PE
+    code += b'\x68' + struct.pack('<I', va(rva_open))  # lpOperation = "open"
+    code += b'\x6A\x00'  # hwnd = 0
+    code += b'\xFF\x15' + struct.pack('<I', va(rva_shell_iat))  # call ShellExecuteA
+
+    # Create start menu shortcut via ShellExecuteA
+    code += b'\x6A\x00'  # nShowCmd = SW_HIDE
+    code += b'\x6A\x00'  # lpDirectory = 0
+    code += b'\x68' + struct.pack('<I', va(rva_startmenu_cmd))  # lpParameters
+    code += b'\x68' + struct.pack('<I', va(rva_powershell))  # lpFile
+    code += b'\x68' + struct.pack('<I', va(rva_open))  # lpOperation
+    code += b'\x6A\x00'  # hwnd
+    code += b'\xFF\x15' + struct.pack('<I', va(rva_shell_iat))  # call ShellExecuteA
     
     # Success MessageBox
     code += b'\x6A\x00'
@@ -206,12 +210,12 @@ def generate_pe(output_path, caption, text, version="v1.0.8", is_installer=False
     code += b'\x6A\x00'
     code += b'\xFF\x15' + struct.pack('<I', va(rva_kernel_iat))
 
-    # Ensure code fits
-    if len(code) > 0x60:
+    # Ensure code fits in 0x200
+    if len(code) > 0x200:
         print(f"Warning: code too long {len(code)}, truncating")
-        code = code[:0x60]
-    # Pad to 0x60
-    code += b'\x90' * (0x60 - len(code))
+        code = code[:0x200]
+    # Pad to 0x200
+    code += b'\x90' * (0x200 - len(code))
     text_section[0:len(code)] = code
 
     # Import descriptors at 0x20: 3 descriptors + null = 80 bytes
@@ -241,6 +245,7 @@ def generate_pe(output_path, caption, text, version="v1.0.8", is_installer=False
     text_section[0x100:0x100+len(kernel_dll_name)] = kernel_dll_name
     text_section[0x110:0x110+len(user_dll_name)] = user_dll_name
     text_section[0x120:0x120+len(shell_dll_name)] = shell_dll_name
+    text_section[0x300:0x300+len(open_str)] = open_str
 
     # Strings
     text_section[0x200:0x200+len(caption_bytes)] = caption_bytes
